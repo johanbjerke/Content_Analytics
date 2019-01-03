@@ -1,0 +1,135 @@
+<form>
+  <label>MITRE Coverage</label>
+  <fieldset submitButton="false"></fieldset>
+  <row>
+    <panel>
+      <title>MITRE Overview</title>
+      <single>
+        <search>
+          <query>| inputlookup mitre_matrix.csv
+| untable x Tactic Technique
+| fields - x
+| union
+    [| rest splunk_server=local count=0 /services/saved/searches
+    | search title="ESCU - *"
+    | fields *escu*
+    | spath input="action.escu.mappings" path=cis20{} output="cis"
+    | spath input="action.escu.mappings" path=mitre_attack{} output="mitre_attack_technique"
+    | spath input="action.escu.mappings" path=kill_chain_phases{} output="kill_chain_phases"
+    | rename mitre_attack_technique AS Technique,action.escu.full_search_name AS search_name
+    | table search_name Technique
+    | stats count by Technique,search_name
+        ]
+| stats values(Tactic) AS Tactic,values(search_name) AS search_name, sum(count) as count by Technique
+| eval Tactic=coalesce(Tactic,Technique)
+| mvexpand Tactic
+| table Tactic Technique search_name count
+| fillnull count
+| stats sum(count) by Tactic</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="drilldown">all</option>
+        <option name="numberPrecision">0</option>
+        <option name="rangeColors">["0xf7bc38","0x65a637"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+        <option name="trellis.enabled">1</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+        <option name="trendColorInterpretation">standard</option>
+        <option name="trendDisplayMode">absolute</option>
+        <option name="unitPosition">after</option>
+        <option name="useColors">1</option>
+        <option name="useThousandSeparators">1</option>
+        <drilldown>
+          <set token="form.Tactic">$trellis.split.Tactic$</set>
+        </drilldown>
+      </single>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <input type="dropdown" token="Tactic">
+        <label>Tactic</label>
+        <choice value="%">Any</choice>
+        <fieldForLabel>Tactic</fieldForLabel>
+        <fieldForValue>Tactic</fieldForValue>
+        <search>
+          <query>| inputlookup mitre_matrix.csv
+| untable x Tactic Technique
+| fields Tactic
+| sort Tactic</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <default>%</default>
+        <initialValue>%</initialValue>
+      </input>
+      <input type="dropdown" token="Technique">
+        <label>Technique</label>
+        <choice value="%">Any</choice>
+        <fieldForLabel>Technique</fieldForLabel>
+        <fieldForValue>Technique</fieldForValue>
+        <search>
+          <query>| inputlookup mitre_matrix.csv
+| untable x Tactic Technique
+| fields Technique
+| sort Technique</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <default>%</default>
+        <initialValue>%</initialValue>
+      </input>
+      <input type="dropdown" token="search_name">
+        <label>Has search</label>
+        <choice value="1=1">Any</choice>
+        <choice value="isnotnull(search_name)">Yes</choice>
+        <choice value="isnull(search_name)">No</choice>
+        <default>isnotnull(search_name)</default>
+      </input>
+      <table>
+        <search>
+          <query>| inputlookup mitre_matrix.csv
+
+| untable x Tactic Technique
+| fields - x
+| union
+    [| rest splunk_server=local count=0 /services/saved/searches
+    | search title="ESCU - *"
+    | fields *escu*
+    | spath input="action.escu.mappings" path=cis20{} output="cis"
+    | spath input="action.escu.mappings" path=mitre_attack{} output="mitre_attack_technique"
+    | spath input="action.escu.mappings" path=kill_chain_phases{} output="kill_chain_phases"
+    | rename mitre_attack_technique AS Technique,action.escu.full_search_name AS search_name
+    | table search_name Technique
+    | stats count by Technique,search_name
+        ]
+| stats values(Tactic) AS Tactic,values(search_name) AS search_name, sum(count) as count by Technique
+| eval Tactic=coalesce(Tactic,Technique)
+| mvexpand Tactic
+| table Tactic Technique search_name count
+| where like(Tactic,"$Tactic$") AND like(Technique,"$Technique$") AND $search_name$
+| fillnull count
+| sort Tactic</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

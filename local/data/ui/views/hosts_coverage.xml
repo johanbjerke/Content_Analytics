@@ -1,0 +1,323 @@
+<form script="tabs.js" stylesheet="tabs.css">
+  <label>Hosts Coverage</label>
+  <description>The first time this dashboard is loaded you will get a warning about a missing lookup. This is automatically generated if it is missing. Reload the dashboard after a few minutes and it should load correctly.</description>
+  <search>
+    <query>| makeresults count=1
+| append [|inputlookup Datamodel_Event_Summary.csv]
+| eventstats sum(eval(if(isnull(datamodel),0,1))) AS datamodelcount,count
+| where datamodelcount=0 AND isnull(datamodel)
+| eval s=if(datamodelcount=0 AND count=1,"
+| makeresults count=1
+| eval _time=now(),datamodel=\"\", Acceleration=\"\",EventCount=\"\",Hosts=\"\"
+| outputlookup createinapp=t Datamodel_Event_Summary.csv
+",
+""
+)
+| map maxsearches=1 search="
+| rest /services/search/jobs/export search=\"$s$\"  output_mode=csv  | fields value
+"
+</query>
+    <earliest>-24h@h</earliest>
+    <latest>now</latest>
+  </search>
+  <search>
+    <query>| `datamodel("Splunk_Audit", "Datamodel_Acceleration")`
+| rename Datamodel_Acceleration.datamodel AS datamodel, Datamodel_Acceleration.complete AS Acceleration
+| lookup Datamodel_Event_Summary.csv datamodel OUTPUT _time
+| where isnull(_time) OR _time&lt;=relative_time(now(), "-24h")
+| map maxsearches=100 search="
+| tstats count AS EventCount,dc(host) AS Hosts from datamodel=$datamodel$ WHERE earliest=\"-24h\" | eval datamodel=\"$datamodel$\",Acceleration=\"$Acceleration$\"
+            "
+| eval _time=now()
+| outputlookup createinapp=t Datamodel_Event_Summary.csv</query>
+    <earliest>-24h@h</earliest>
+    <latest>now</latest>
+  </search>
+
+
+  <init>
+    <unset token="display_assets_1"></unset>
+    <unset token="display_assets_2"></unset>
+    <unset token="display_assets_3"></unset>
+    <unset token="display_assets_4"></unset>
+    <unset token="display_assets_5"></unset>
+  </init>
+  <fieldset submitButton="false">
+    <input type="time" token="field1" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+      <change>
+        <set token="time_label">$label$</set>
+      </change>
+    </input>
+  </fieldset>
+  <row depends="$hideme$">
+    <panel>
+      <html>
+
+      <style type="text/css">
+        
+
+
+</style>
+
+    </html>
+    </panel>
+  </row>
+  <row id="assets">
+    <panel>
+      <html>
+      <h1>Assets and Hosts- Click to drill down</h1>
+    </html>
+    </panel>
+  </row>
+  <row id="assets2">
+    <panel>
+      <single>
+        <title>Hosts in Asset Inventory</title>
+        <search>
+          <query>| inputlookup append=T asset_lookup_by_str where (dns=* OR nt_host=* OR ip=* OR mac=*)
+| inputlookup append=t asset_lookup_by_cidr where (dns=* OR nt_host=* OR ip=* OR mac=*)
+| dedup asset_id
+| stats count
+</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">In $time_label$</option>
+        <drilldown>
+          <set token="display_assets_1">1</set>
+          <unset token="display_assets_2"></unset>
+          <unset token="display_assets_3"></unset>
+          <unset token="display_assets_4"></unset>
+          <unset token="display_assets_5"></unset>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Hosts with data</title>
+        <search>
+          <query>| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| timechart span=1d count
+| where _time&gt;=relative_time(now(),"-24h")</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">In $time_label$</option>
+        <drilldown>
+          <unset token="display_assets_1"></unset>
+          <set token="display_assets_2">1</set>
+          <unset token="display_assets_3">1</unset>
+          <unset token="display_assets_4">1</unset>
+          <unset token="display_assets_5">1</unset>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Hosts in Asset Inventory with data</title>
+        <search>
+          <query>| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| where _time&gt;=relative_time(now(),"-24h")
+| `get_asset(host)`
+| where isnotnull(host_asset_id)
+| stats count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">In $time_label$</option>
+        <drilldown>
+          <unset token="display_assets_1"></unset>
+          <unset token="display_assets_2"></unset>
+          <set token="display_assets_3">1</set>
+          <unset token="display_assets_4"></unset>
+          <unset token="display_assets_5"></unset>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Hosts in Asset Inventory with no data</title>
+        <search>
+          <query>| `assets`
+| join asset_id type=outer [
+| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| where _time&gt;=relative_time(now(),"-24h")
+| `get_asset(host)`
+| where isnotnull(host_asset_id)
+|rename host_asset_id AS asset_id
+| fields asset_id totalCount
+]
+| where isnull(totalCount)
+| stats count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">In $time_label$</option>
+        <drilldown>
+          <unset token="display_assets_1"></unset>
+          <unset token="display_assets_2"></unset>
+          <unset token="display_assets_3"></unset>
+          <set token="display_assets_4">1</set>
+          <unset token="display_assets_5"></unset>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Hosts with data not in Asset Inventory</title>
+        <search>
+          <query>| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| where _time&gt;=relative_time(now(),"-24h")
+| `get_asset(host)`
+| where isnull(host_asset_id)
+| stats count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">all</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">In $time_label$</option>
+        <drilldown>
+          <unset token="display_assets_1"></unset>
+          <unset token="display_assets_2"></unset>
+          <unset token="display_assets_3"></unset>
+          <unset token="display_assets_4"></unset>
+          <set token="display_assets_5">1</set>
+        </drilldown>
+      </single>
+    </panel>
+  </row>
+  <row id="assets3">
+    <panel depends="$display_assets_1$">
+      <table>
+        <title>Hosts in Asset Inventory</title>
+        <search>
+          <query>| inputlookup append=T asset_lookup_by_str where (dns=* OR nt_host=* OR ip=* OR mac=*)
+| inputlookup append=t asset_lookup_by_cidr where (dns=* OR nt_host=* OR ip=* OR mac=*)
+| dedup asset_id</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+    <panel depends="$display_assets_2$">
+      <table>
+        <title>Hosts with data</title>
+        <search>
+          <query>| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| where _time&gt;=relative_time(now(),"-24h")</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+    <panel depends="$display_assets_3$">
+      <table>
+        <title>Hosts in Asset Inventory with data</title>
+        <search>
+          <query>| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| where _time&gt;=relative_time(now(),"-24h")
+| `get_asset(host)`
+| where isnotnull(host_asset_id)</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+    <panel depends="$display_assets_4$">
+      <table>
+        <title>Hosts in Asset Inventory with no data</title>
+        <search>
+          <query>| `assets`
+| join asset_id type=outer [
+| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| where _time&gt;=relative_time(now(),"-24h")
+| `get_asset(host)`
+| where isnotnull(host_asset_id)
+|rename host_asset_id AS asset_id
+| fields asset_id totalCount
+]
+| where isnull(totalCount)</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+    <panel depends="$display_assets_5$">
+      <table>
+        <title>Hosts with data not in Asset Inventory</title>
+        <search>
+          <query>| metadata type=hosts
+| eval _time=lastTime
+| table host totalCount _time
+| reltime
+| sort sourcetype
+| rename reltime AS "Last Event"
+| where _time&gt;=relative_time(now(),"-24h")
+| `get_asset(host)`
+| where isnull(host_asset_id)</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+</form>

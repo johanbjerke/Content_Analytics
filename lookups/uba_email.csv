@@ -1,0 +1,8 @@
+uba_field_name,cim_field_name,required
+<externalAction>,action,N
+emailAttachmentSize,file_size,N
+fileName,file_name,N
+emailRecipients,recipient,Y
+emailSenderId,src_user,Y
+emailSubject,subject,Y
+evcls,eventtype,Y

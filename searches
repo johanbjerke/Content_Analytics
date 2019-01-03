@@ -1,0 +1,25 @@
+|inputlookup mitre_matrix.csv
+| join Technique type=outer [
+| rest splunk_server=local count=0 /services/saved/searches
+| search title="ESCU - *" "action.escu.mappings"="*Lateral*"
+| fields *escu*
+| spath input="action.escu.mappings" path=cis20{} output="cis"
+| spath input="action.escu.mappings" path=mitre_attack{} output="mitre_attack_technique"
+| spath input="action.escu.mappings" path=kill_chain_phases{} output="kill_chain_phases"
+| table action.escu.full_search_name mitre_attack_technique
+| stats values(action.escu.full_search_name) AS search_name,count by mitre_attack_technique
+| rename mitre_attack_technique AS Technique
+| fields count Technique
+| outputlookup mitre_techniques.csv
+]
+| lookup mitre_techniques.csv Technique AS Collection OUTPUT count AS c1
+| lookup mitre_techniques.csv Technique AS "Command and Control" OUTPUT count AS c2
+| lookup mitre_techniques.csv Technique AS "Credential Access" OUTPUT count AS c3
+| lookup mitre_techniques.csv Technique AS "Defense Evasion" OUTPUT count AS c4
+| lookup mitre_techniques.csv Technique AS "Discovery" OUTPUT count AS c5
+| lookup mitre_techniques.csv Technique AS "Execution" OUTPUT count AS c6
+| lookup mitre_techniques.csv Technique AS "Exfiltration" OUTPUT count AS c7
+| lookup mitre_techniques.csv Technique AS "Lateral Movement" OUTPUT count AS c8
+| lookup mitre_techniques.csv Technique AS "Persistence" OUTPUT count AS c9
+| lookup mitre_techniques.csv Technique AS "Privilege Escalation" OUTPUT count AS c10
+| table Collection c1 "Command and Control" c2 "Credential Access" c3 "Defense Evasion" c4 "Discovery" c5 "Execution" c6 "Exfiltration" c7 "Lateral Movement" c8 "Persistence" c9 "Privilege Escalation" c10

@@ -1,0 +1,21 @@
+<nav search_view="search" color="#65A637">
+<view name="data_source_overview"/>
+  <view name="mitre_overview"/>
+  <view name="kill_chain_overview"/>
+<view name="nist_overview"/>
+  <view name="cis_overview"/>
+  <view name="hosts_coverage"/>
+  <view name="sourcetypes"/>
+  
+  <collection label="Search">
+    <view name="search"  />
+  <view name="datasets" />
+  <view name="reports" />
+  <view name="alerts" />
+  <view name="dashboards" />
+  </collection>
+  
+  <collection label="Others">    
+	<view source="unclassified" />  
+	</collection>
+</nav>

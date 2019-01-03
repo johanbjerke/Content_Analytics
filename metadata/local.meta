@@ -1,0 +1,90 @@
+[app/ui]
+version = 7.0.2
+modtime = 1519943105.696180000
+
+[app/launcher]
+version = 7.0.2
+modtime = 1519943105.716735000
+
+[]
+access = read : [ * ], write : [ admin, power ]
+export = system
+version = 7.2.0
+modtime = 1541755015.254676000
+import = DA-ESS-AccessProtection, DA-ESS-ContentUpdate, DA-ESS-IdentityManagement, DA-ESS-NetworkProtection, DA-ESS-ThreatIntelligence, SA-AuditAndDataProtection, SA-Investigator, SA-NetworkProtection, SA-ThreatIntelligence, SA-Utils, SA-devforall, SplunkEnterpriseSecuritySuite, Splunk_DA-ESS_PCICompliance, Splunk_SA_CIM, Splunk_SA_ExtremeSearch, Splunk_SA_Scientific_Python_darwin_x86_64, TA-QualysCloudPlatform, appsbrowser, search, splunk_instrumentation
+
+[views/data_source_overview]
+version = 7.2.0
+modtime = 1545313711.220654000
+
+[views/mitre_overview]
+version = 7.0.2
+modtime = 1521195714.150881000
+
+[nav/default]
+version = 7.2.0
+modtime = 1539330830.927572000
+
+[views/sourcetypes]
+version = 7.2.0
+modtime = 1539615472.041308000
+
+[lookups/kill_chain_phases.csv]
+owner = admin
+version = 7.2.0
+modtime = 1545311009.535606000
+
+[views/kill_chain_overview]
+version = 7.2.0
+modtime = 1545313702.652262000
+
+[macros/getsse]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.0
+modtime = 1543941859.813652000
+
+[lookups/SourcetypeNormalisation.csv]
+version = 7.2.0
+modtime = 1543953622.459818000
+
+[transforms/SourcetypeNormalisation]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = admin
+version = 7.2.0
+modtime = 1543946072.215554000
+
+[lookups/SourceToSourcetype.csv]
+version = 7.2.0
+modtime = 1543951304.987013000
+
+[transforms/SourceToSourcetype]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = admin
+version = 7.2.0
+modtime = 1543953790.050880000
+
+[savedsearches/Generate%20Sourcetype%20Summary%20-%20Scheduled]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.0
+modtime = 1545236993.899407000
+
+[transforms/kill_chain_phases]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = admin
+version = 7.2.0
+modtime = 1545311207.137622000
+
+[views/cis_overview]
+version = 7.2.0
+modtime = 1545317085.694881000
+
+[views/nist_overview]
+version = 7.2.0
+modtime = 1545317697.085626000

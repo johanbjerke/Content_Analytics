@@ -1,0 +1,8 @@
+uba_field_name,cim_field_name,required
+bytesReceived,bytes_in,N
+bytesSent,bytes_out,N
+bytesTransmitted,bytes,N
+duration,duration,N
+destUser,user,Y
+sourceip,src_ip,Y
+destinationip,dest_ip,N

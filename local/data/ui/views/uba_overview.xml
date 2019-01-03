@@ -1,0 +1,54 @@
+<form>
+  <label>UBA Overview</label>
+  <fieldset submitButton="false"></fieldset>
+  <row>
+    <panel>
+      <input type="dropdown" token="category">
+        <label>UBA Category</label>
+        <choice value="*">Any</choice>
+        <choice value="Authentication">Authentication</choice>
+        <choice value="DLP_Incidents">DLP</choice>
+        <choice value="Email">Email</choice>
+        <choice value="Endpoint">Endpoint</choice>
+        <choice value="IDS_Attacks">IDS</choice>
+        <choice value="IDS">External Alarm</choice>
+        <choice value="Malware">Host AV</choice>
+        <choice value="DNS">DNS</choice>
+        <choice value="Network_Sessions">DHCP</choice>
+        <choice value="Network">VPN</choice>
+        <choice value="Network_Traffic">Firewall</choice>
+        <choice value="Web.Proxy">Web Proxy</choice>
+      </input>
+      <table>
+        <search>
+          <query>| inputlookup uba_authentication.csv
+| eval cim_field_name="count(Authentication.".cim_field_name.")",cim_field_names=""
+| stats list(cim_field_name) AS cim_field_names
+| nomv cim_field_names
+| eval s="| tstats
+".cim_field_names."
+from datamodel=Authentication
+| rename count(Authentication.*) AS *
+| transpose
+| rename column AS cim_field_name, \"row 1\" as count
+"
+| map maxsearches=100 search="
+| rest /services/search/jobs/export search=\"$$s$$\"  output_mode=csv| fields value
+"
+| `rest_format`
+| lookup uba_authentication.csv cim_field_name OUTPUT required</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">100</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

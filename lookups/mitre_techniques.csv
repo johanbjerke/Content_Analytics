@@ -1,0 +1,50 @@
+count,Technique
+3,"Accessibility Features"
+1,"Account Discovery"
+1,"AppInit DLLs"
+3,"Application Shimming"
+1,"Authentication Package"
+3,"Change Default File Association"
+6,Collection
+13,"Command and Control"
+9,"Command-Line Interface"
+16,"Commonly Used Port"
+1,"Create Account"
+11,"Credential Access"
+3,"Credential Dumping"
+2,"Data Staged"
+27,"Defense Evasion"
+6,"Disabling Security Tools"
+2,Discovery
+2,"Email Collection"
+50,Execution
+15,Exfiltration
+3,"Exfiltration Over Alternative Protocol"
+2,"Exfiltration Over Command and Control Channel"
+6,"Exploitation of Vulnerability"
+3,"Indicator Removal on Host"
+1,"Initial Access"
+11,"Lateral Movement"
+1,"Local Port Monitor"
+1,Masquerading
+2,"Modify Existing Service"
+2,"Modify Registry"
+4,"New Service"
+1,"Pass the Hash"
+32,Persistence
+6,PowerShell
+5,"Privilege Escalation"
+1,"Registry Run Keys / Start Folder"
+5,"Remote Desktop Protocol"
+1,"Remote Services"
+1,Rundll32
+4,"Scheduled Task"
+7,Scripting
+1,"Standard Application Layer Protocol"
+1,"Standard Non-Application Layer Protocol"
+2,"System Information Discovery"
+1,"Third-party Software"
+6,"Valid Accounts"
+1,"Web Service"
+7,"Windows Management Instrumentation"
+3,"Windows Management Instrumentation Event Subscription"

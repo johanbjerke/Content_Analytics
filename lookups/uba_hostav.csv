@@ -1,0 +1,14 @@
+uba_field_name,cim_field_name,required
+alarmCategories,"No CIM field equivalent. Instead, enumerate one or more categories in Splunk UBA. Separate multiple categories with a comma.",Y
+riskClassification,severity,Y
+externalAction,action,Y
+destinationIp,dest_ip,Y
+destinationDns,dest_host,N
+domain,dest_nt_domain,N
+duration,duration,N
+destUser,user,N
+category,category,N
+externalUrl,url,N
+fileName,file_name,N
+filePath,file_path,N
+evcls,eventtype,Y
