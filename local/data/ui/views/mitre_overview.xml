@@ -1,135 +1,660 @@
-<form>
+<form script="tabs.js,dashboard.js" stylesheet="tabs.css" theme="light">
   <label>MITRE Coverage</label>
-  <fieldset submitButton="false"></fieldset>
+  <description></description>
+  <init>
+    <set token="chart_post_process">| lookup mitre_matrix_list "Tactic" AS "MITRE Tactic" OUTPUT Tactic_Order
+| sort Tactic_Order
+| fields - Tactic_Order</set>
+  </init>
+  <search>
+    <query>| makeresults count=1
+| append [|inputlookup Datamodel_Event_Summary.csv]
+| eventstats sum(eval(if(isnull(datamodel),0,1))) AS datamodelcount,count
+| where datamodelcount=0 AND isnull(datamodel)
+| eval s=if(datamodelcount=0 AND count=1,"
+| makeresults count=1
+| eval _time=now(),datamodel=\"\", Acceleration=\"\",EventCount=\"\",Hosts=\"\"
+| outputlookup createinapp=t Datamodel_Event_Summary.csv
+",
+""
+)
+| map maxsearches=1 search="
+| rest /services/search/jobs/export search=\"$s$\"  output_mode=csv  | fields value
+"
+</query>
+    <earliest>-24h@h</earliest>
+    <latest>now</latest>
+  </search>
+  <search>
+    <query>| rest splunk_server=local /services/apps/local | search disabled=0 title=*sankey*</query>
+    <done>
+      <condition match="'job.resultCount' == 0">
+        <set token="nosankey">nosankey</set>
+        <unset token="sankey">sankey</unset>
+      </condition>
+      <condition match="'job.resultCount' &gt; 0">
+        <unset token="nosankey">nosankey</unset>
+        <set token="sankey">sankey</set>
+      </condition>
+    </done>
+  </search>
+  <search>
+    <query>| `datamodel("Splunk_Audit", "Datamodel_Acceleration")`
+| rename Datamodel_Acceleration.datamodel AS datamodel, Datamodel_Acceleration.complete AS Acceleration
+| lookup Datamodel_Event_Summary.csv datamodel OUTPUT _time
+| where isnull(_time) OR _time&lt;=relative_time(now(), "-24h")
+| map maxsearches=100 search="
+| tstats count AS EventCount,dc(host) AS Hosts from datamodel=$datamodel$ WHERE earliest=\"-24h\" | eval datamodel=\"$datamodel$\",Acceleration=\"$Acceleration$\"
+            "
+| eval _time=now()
+| outputlookup createinapp=t Datamodel_Event_Summary.csv</query>
+    <earliest>-24h@h</earliest>
+    <latest>now</latest>
+  </search>
+  <search id="usecase_base">
+    <query>
+| rest splunk_server=local count=0 /services/saved/searches search=action.correlationsearch.enabled
+| rename eai:acl.app as app, title as csearch_name, action.correlationsearch.label as csearch_label, action.notable.param.security_domain as security_domain, action.escu.providing_technologies AS providing_technologies
+| append [ `getsse` ]
+| rex field=qualifiedSearch ".*datamodel(=\"|:\"|\(\"|\s|:|=)(\"|)(?&lt;datamodel&gt;[a-z,A-Z,_]*)"
+| lookup Datamodel_Event_Summary.csv datamodel
+| eval csearch_label=coalesce(csearch_label,csearch_name)
+| fillnull EventCount Hosts
+| fields action.escu.mappings csearch_label description qualifiedSearch datamodel EventCount Hosts disabled app displayapp security_domain providing_technologies usecase hasSearch includeSSE datasource displayapp app journey category domain icon description dashboard mitre killchain alertvolume bookmark_status
+| where len(description)&gt;0
+
+| spath input="action.escu.mappings" path=cis20{} output="CIS"
+| spath input="action.escu.mappings" path=mitre_attack{} output="MITRE"
+| spath input="action.escu.mappings" path=kill_chain_phases{} output="Kill Chain Phase"
+| eval "MITRE"=coalesce('MITRE', mitre)
+| spath input="action.escu.mappings" path=nist{} output="NIST"
+| lookup kill_chain_phases title AS "Kill Chain Phase" OUTPUT order_title AS kill_chain_phase_order_title
+| eval "Kill Chain Phase Orig"='Kill Chain Phase'
+| eval "Kill Chain Phase"=kill_chain_phase_order_title
+
+| where isnotnull('MITRE')
+| lookup mitre_matrix_list "Tactic" AS "MITRE" OUTPUT Tactic AS "MITRE Tactic"
+| lookup mitre_matrix_list "Technique" AS "MITRE" OUTPUT Technique AS "MITRE Technique",Tactic AS "MITRE_Tactic_from_technique"
+| lookup mitre_matrix_list "Technique" AS "MITRE" OUTPUT Tactic AS "MITRE_Tactic_from_technique"
+| eval "MITRE Tactic"=coalesce('MITRE Tactic',MITRE_Tactic_from_technique)
+| fields - MITRE_Tactic_from_technique
+
+| rex max_match=0 field="qualifiedSearch" "sourcetype(=\"|=)(?&lt;Sourcetype&gt;[^\s^\"^\)]*)"
+| lookup SourcetypeNormalisation Sourcetype OUTPUT Normalised
+| rex max_match=0 field="qualifiedSearch" "source(=\"|=)(?&lt;Source&gt;[^\s^\"^\)]*)"
+| lookup SourceToSourcetype Source OUTPUT Sourcetype AS SourcetypeFromSource
+| eval Sourcetype=mvdedup(coalesce(Normalised,SourcetypeFromSource,Sourcetype))
+| eval sourcetype_origin="from_use_case"
+| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin2, app AS AddOn
+| eval sourcetype_origin=coalesce(sourcetype_origin2,sourcetype_origin)
+| fields - sourcetype_origin2
+
+| eval providing_technologies=split(providing_technologies, ",")
+| rex field=providing_technologies mode=sed "s/[\"\[\]]//g"
+| eval providing_technologies=trim(providing_technologies)
+
+| rename csearch_label AS "Use Case", description AS Description, qualifiedSearch as "Detection Search", datamodel AS Datamodel, EventCount AS Events, providing_technologies AS "Providing Technologies"
+| eval Enabled=if(disabled=1, "No", "Yes")
+| eval App=case(app="DA-ESS-ContentUpdate", "ES Content Updates", like(app,"SA-%") OR like(app,"DA-%"), "Enterprise Security", like(Description,"%Security Essentials%"), "Splunk Security Essentials",isnotnull(displayapp),displayapp,1=1, app)
+| join type=outer Datamodel 
+    [| rest splunk_server=local count=0 /servicesNS/-/-/admin/datamodel-files 
+    | spath input=eai:data output=base_search path=objects{}.baseSearch 
+    | spath input=eai:data output=constraints path=objects{}.constraints{}.search 
+    | eval tag_content = mvappend(base_search,constraints) 
+    | rex max_match=0 field=tag_content "tag=\"?(?&lt;tag_name&gt;\w+)\"?" 
+    | mvexpand tag_name 
+    | rename title AS datamodel 
+    | fields tag_name datamodel 
+    | append 
+        [| rest splunk_server=local count=0 /servicesNS/-/-/admin/eventtypes 
+        | rename eai:acl.app AS app tags AS tag_name 
+        | search app="*TA*" 
+        | rex max_match=0 field=search "sourcetype=\"?(?&lt;sourcetype&gt;[^\s\"^)]+)\"?" 
+        | mvexpand sourcetype 
+        | lookup SourcetypeNormalisation Sourcetype AS sourcetype OUTPUT Normalised
+        | eval sourcetype=mvdedup(coalesce(Normalised,sourcetype))
+        | mvexpand sourcetype 
+        | mvexpand tag_name 
+        | eval app_sourcetype=mvzip(app,sourcetype,"__") 
+        | fields sourcetype tag_name app_sourcetype app 
+        | stats values(tag_name) as tag_name by app, sourcetype,app_sourcetype
+            ] 
+    | stats first(Hosts) AS Hosts,sum(EventCount) AS "EventCount",first(totalCount) AS totalCount,list(datamodel) as datamodel, list(app) as app, list(app_sourcetype) as app_sourcetype by tag_name 
+    | search datamodel=* 
+    | eval datamodel=mvdedup(datamodel) 
+    | stats first(Hosts) AS Hosts,values(EventCount) AS "EventCount",values(app_sourcetype) as app_sourcetype, values(tag_name) as tags by datamodel 
+    | rex max_match=0 field=app_sourcetype "\"?(?&lt;app&gt;.+)__\"?" 
+    | rex max_match=0 field=app_sourcetype "__\"?(?&lt;sourcetype&gt;.+)\"?" 
+    | eval tags=mvdedup(tags),app=mvdedup(app),EventCount=mvdedup(EventCount) 
+    | eventstats sum(EventCount) AS EventCount BY datamodel 
+    | fields - app_sourcetype 
+    | lookup Datamodel_Event_Summary.csv datamodel
+    | rename datamodel AS Datamodel, tags as Tags, sourcetype AS Sourcetype, app AS AddOn
+    | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin
+    | fillnull Hosts 
+    | eval Acceleration=round(Acceleration,2)
+        ]
+
+| eval Datamodel=coalesce(Datamodel,"-"),"MITRE Tactic"=coalesce('MITRE Tactic',"-"),"MITRE Technique"=coalesce('MITRE Technique',"-")
+| eval AddOn=coalesce(split(replace(AddOn,"\n","---"),"---"),AddOn,"-"),Sourcetype=coalesce(split(replace(Sourcetype,"\n","---"),"---"),Sourcetype,"-"),sourcetype_origin=coalesce(split(replace(sourcetype_origin,"\n","---"),"---"),sourcetype_origin,"-")
+| eval Accelerated=if(Acceleration&gt;0, "Yes","No")
+| eval "Enabled and Accelerated"=if(Acceleration&gt;0 AND Enabled="Yes", "Yes","No")
+| eval "Has Data"=if(EventCount&gt;0, "Yes", "No")
+| eval Status=case(
+'Enabled'="Yes" AND 'Has Data'="Yes","Current",
+'Has Data'="Yes","Phase 1 - Potential",
+1=1,"Phase 2 - Needs more data"
+)
+
+</query>
+  </search>
+  <search base="usecase_base">
+    <query>
+      | table "MITRE Tactic" "MITRE Technique" Status
+| mvexpand "MITRE Tactic"
+| mvexpand "MITRE Technique"
+| eventstats count AS MITRE_Tactic_Total BY "MITRE Tactic" 
+| eventstats count AS MITRE_Technique_Total BY "MITRE Technique"
+| eventstats count AS MITRE_Tactic_Technique_Total BY "MITRE Tactic" "MITRE Technique"
+| stats 
+sum(eval(if(Status="Current",1,0))) AS "Current",
+sum(eval(if(Status="Phase 1 - Potential",1,0))) AS "Phase 1 - Potential",
+sum(eval(if(Status="Phase 2 - Needs more data",1,0))) AS "Phase 2 - Needs more data",
+max(MITRE_Tactic_Total) AS MITRE_Tactic_Total,
+max(MITRE_Technique_Total) AS MITRE_Technique_Total
+max(MITRE_Tactic_Technique_Total) AS MITRE_Tactic_Technique_Total
+BY "MITRE Tactic","MITRE Technique"
+| rename "MITRE *" AS *,"MITRE_*" AS *
+| table Tactic Tactic_Total Technique Technique_Total Current "Phase 1 - Potential" "Phase 2 - Needs more data" Technique_Total
+| outputlookup mitre_environment_count.csv
+    </query>
+  </search>
+  <fieldset submitButton="false">
+    <input type="time" token="field1" searchWhenChanged="true">
+      <label></label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+      <change>
+        <set token="time_label">$label$</set>
+      </change>
+    </input>
+  </fieldset>
   <row>
     <panel>
-      <title>MITRE Overview</title>
+      <html>
+        Each number represents a detection search <br/>
+  For more details check the <a href="https://mitre-attack.github.io/attack-navigator/enterprise/" target="_blank">MITRE ATTACK Navigator</a>
+  
+      </html>
+    </panel>
+  </row>
+  <row id="cs2">
+    <panel>
       <single>
-        <search>
-          <query>| inputlookup mitre_matrix.csv
-| untable x Tactic Technique
-| fields - x
-| union
-    [| rest splunk_server=local count=0 /services/saved/searches
-    | search title="ESCU - *"
-    | fields *escu*
-    | spath input="action.escu.mappings" path=cis20{} output="cis"
-    | spath input="action.escu.mappings" path=mitre_attack{} output="mitre_attack_technique"
-    | spath input="action.escu.mappings" path=kill_chain_phases{} output="kill_chain_phases"
-    | rename mitre_attack_technique AS Technique,action.escu.full_search_name AS search_name
-    | table search_name Technique
-    | stats count by Technique,search_name
-        ]
-| stats values(Tactic) AS Tactic,values(search_name) AS search_name, sum(count) as count by Technique
-| eval Tactic=coalesce(Tactic,Technique)
-| mvexpand Tactic
-| table Tactic Technique search_name count
-| fillnull count
-| stats sum(count) by Tactic</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
-          <sampleRatio>1</sampleRatio>
+        <title>Current coverage</title>
+        <search base="usecase_base">
+          <query>| where Status="Current"
+| stats count</query>
         </search>
-        <option name="colorBy">value</option>
         <option name="colorMode">block</option>
         <option name="drilldown">all</option>
-        <option name="numberPrecision">0</option>
-        <option name="rangeColors">["0xf7bc38","0x65a637"]</option>
-        <option name="rangeValues">[0]</option>
-        <option name="showSparkline">1</option>
-        <option name="showTrendIndicator">1</option>
-        <option name="trellis.enabled">1</option>
-        <option name="trellis.scales.shared">1</option>
-        <option name="trellis.size">medium</option>
-        <option name="trendColorInterpretation">standard</option>
-        <option name="trendDisplayMode">absolute</option>
-        <option name="unitPosition">after</option>
+        <option name="rangeColors">["0x638771","0x3c444d"]</option>
+        <option name="rangeValues">[1000]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">Use Cases (Enabled)</option>
         <option name="useColors">1</option>
-        <option name="useThousandSeparators">1</option>
         <drilldown>
-          <set token="form.Tactic">$trellis.split.Tactic$</set>
+          <set token="form.corr_enabled">Yes</set>
+          <set token="form.corr_data">=*</set>
+          <set token="form.phase">Current</set>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Phase 1 - Potential coverage</title>
+        <search base="usecase_base">
+          <query>| where Status="Phase 1 - Potential"
+| stats count</query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">all</option>
+        <option name="rangeColors">["0xA0BBAA","0x3c444d"]</option>
+        <option name="rangeValues">[1000]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">Use Cases (Data Exist)</option>
+        <option name="useColors">1</option>
+        <drilldown>
+          <set token="form.corr_enabled">No</set>
+          <set token="form.corr_data">&gt;0</set>
+          <set token="form.phase">Phase 1 - Potential</set>
+        </drilldown>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Phase 2 - Needs more data</title>
+        <search base="usecase_base">
+          <query>| where Status="Phase 2 - Needs more data"
+| stats count</query>
+        </search>
+        <option name="colorMode">block</option>
+        <option name="drilldown">all</option>
+        <option name="rangeColors">["0xE0E9E3","0x3c444d"]</option>
+        <option name="rangeValues">[10000]</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="underLabel">Use Cases (Total)</option>
+        <option name="useColors">1</option>
+        <drilldown>
+          <set token="form.corr_enabled">*</set>
+          <set token="form.corr_data">=*</set>
+          <set token="form.phase">Phase 2 - Needs more data</set>
         </drilldown>
       </single>
     </panel>
   </row>
-  <row>
+  <row id="tabs">
     <panel>
-      <input type="dropdown" token="Tactic">
-        <label>Tactic</label>
-        <choice value="%">Any</choice>
-        <fieldForLabel>Tactic</fieldForLabel>
-        <fieldForValue>Tactic</fieldForValue>
-        <search>
-          <query>| inputlookup mitre_matrix.csv
-| untable x Tactic Technique
-| fields Tactic
-| sort Tactic</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
-        </search>
-        <default>%</default>
-        <initialValue>%</initialValue>
+      <html>
+      <h1>Use Case Overview - Click to filter</h1>
+      <ul id="tabs" class="nav nav-tabs">
+                    <li class="active">
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row1_col1" data-token="row1_col1">Chart View</a>
+                    </li>
+                    <li>
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row2_col1" data-token="row2_col1">Sankey View</a>
+                    </li>
+                    <li>
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row1_col3" data-token="row1_col3">Stats View</a>
+                    </li>
+				</ul>
+				
+				
+    </html>
+    </panel>
+  </row>
+  <row id="row1_col1">
+    <panel>
+      <input type="dropdown" token="y_field">
+        <label>Y-Axis</label>
+        <choice value="Status">Status</choice>
+        <choice value="Has Data">Has data</choice>
+        <choice value="Enabled">Enabled</choice>
+        <choice value="Accelerated">Accelerated</choice>
+        <choice value="Enabled and Accelerated">Enabled and Accelerated</choice>
+        <default>Status</default>
       </input>
-      <input type="dropdown" token="Technique">
-        <label>Technique</label>
-        <choice value="%">Any</choice>
-        <fieldForLabel>Technique</fieldForLabel>
-        <fieldForValue>Technique</fieldForValue>
-        <search>
-          <query>| inputlookup mitre_matrix.csv
-| untable x Tactic Technique
-| fields Technique
-| sort Technique</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
-        </search>
-        <default>%</default>
-        <initialValue>%</initialValue>
+      <input type="dropdown" token="x_field">
+        <label>X-Axis</label>
+        <choice value="Datamodel">Datamodel</choice>
+        <choice value="AddOn">Add On</choice>
+        <choice value="App">App</choice>
+        <choice value="Sourcetype">Sourcetype</choice>
+        <choice value="MITRE Tactic">MITRE Tactic</choice>
+        <choice value="MITRE Technique">MITRE Technique</choice>
+        <default>MITRE Technique</default>
+        <change>
+          <condition label="Kill Chain Phase">
+            <set token="chart_post_process">| append
+[
+| inputlookup kill_chain_phases.csv
+| fields title order_title
+| rename order_title AS "Kill Chain Phase"
+]
+| stats first(*) AS * BY "Kill Chain Phase"
+| fields - "Kill Chain Phase"
+| rename title AS "Kill Chain Phase"
+| fillnull
+|  foreach "Current" "Phase 1 - Potential" "Phase 2 - Needs more data"
+[
+    | eval "&lt;&lt;FIELD&gt;&gt;"=if(isnull('&lt;&lt;FIELD&gt;&gt;'), 0,'&lt;&lt;FIELD&gt;&gt;' )
+]
+| table "$x_field$" "Current" "Phase 1 - Potential" "Phase 2 - Needs more data"</set>
+          </condition>
+          <condition label="CIS">
+            <set token="chart_post_process">| eval CIS=if(len(CIS)=5, "CIS 0".substr(CIS,5,1),CIS)
+| sort CIS</set>
+          </condition>
+          <condition label="MITRE Tactic">
+            <set token="chart_post_process">| lookup mitre_matrix_list "Tactic" AS "MITRE Tactic" OUTPUT Tactic_Order
+| sort Tactic_Order
+| fields - Tactic_Order</set>
+          </condition>
+          <condition label="MITRE Technique">
+            <set token="chart_post_process">| lookup mitre_matrix_list "Technique" AS "MITRE Technique" OUTPUT Technique_Order
+| sort Technique_Order
+| fields - Technique_Order</set>
+          </condition>
+          <condition label="*">
+            <set token="chart_post_process">|  foreach "Current" "Phase 1 - Potential" "Phase 2 - Needs more data"
+[
+    | eval "&lt;&lt;FIELD&gt;&gt;"=if(isnull('&lt;&lt;FIELD&gt;&gt;'), 0,'&lt;&lt;FIELD&gt;&gt;' )
+]
+| table "$x_field$" "Current" "Phase 1 - Potential" "Phase 2 - Needs more data"</set>
+          </condition>
+        </change>
       </input>
-      <input type="dropdown" token="search_name">
-        <label>Has search</label>
-        <choice value="1=1">Any</choice>
-        <choice value="isnotnull(search_name)">Yes</choice>
-        <choice value="isnull(search_name)">No</choice>
-        <default>isnotnull(search_name)</default>
+      <input type="dropdown" token="phase">
+        <label>Phase</label>
+        <choice value="*">Any</choice>
+        <choice value="Current">Current</choice>
+        <choice value="Phase 1 - Potential">Phase 1</choice>
+        <choice value="Phase 2 - Needs more data">Phase 2</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="sourcetype_origin">
+        <label>Sourcetypes</label>
+        <choice value="installed">Installed Sourcetypes</choice>
+        <choice value="*">All Sourcetypes</choice>
+        <default>installed</default>
+        <initialValue>installed</initialValue>
+      </input>
+      <chart>
+        <search base="usecase_base">
+          <query>| search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
+| chart count over "$x_field$" By "$y_field$"
+              $chart_post_process$</query>
+        </search>
+        <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
+        <option name="charting.axisLabelsX.majorLabelStyle.rotation">-45</option>
+        <option name="charting.axisLabelsY.majorUnit">1</option>
+        <option name="charting.axisTitleY.text">Use Cases</option>
+        <option name="charting.axisTitleY.visibility">visible</option>
+        <option name="charting.axisY.abbreviation">none</option>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.drilldown">all</option>
+        <option name="charting.fieldColors">{"Current": 0x638771, "Phase 1 - Potential": 0xA0BBAA, "Phase 2 - Needs more data":0xE0E9E3, "Yes":0x638771, "No":0xE0E9E3, "Enabled":0x638771, "Disabled":0xE0E9E3}</option>
+        <option name="height">310</option>
+        <option name="refresh.display">progressbar</option>
+        <drilldown>
+          <eval token="form.corr_enabled">if($form.y_field$="Enabled" OR $form.y_field$="Enabled and Accelerated", $click.name2$,"*")</eval>
+          <eval token="form.accelerated">if($form.y_field$="Accelerated" OR $form.y_field$="Enabled and Accelerated", $click.name2$,"*")</eval>
+          <eval token="form.status">if($form.y_field$="Status", $click.name2$,"*")</eval>
+          <eval token="form.sourcetype">if($form.x_field$="Sourcetype", $click.value$,"*")</eval>
+          <eval token="form.datamodel">if($form.x_field$="Datamodel", $click.value$,"*")</eval>
+          <eval token="form.AddOn">if($form.x_field$="AddOn", $click.value$,"*")</eval>
+          <eval token="form.App">if($form.x_field$="App", $click.value$,"*")</eval>
+          <eval token="form.kill_chain_phase">if($form.x_field$="Kill Chain Phase", $click.value$,"*")</eval>
+          <eval token="form.CIS">if($form.x_field$="CIS", $click.value$,"*")</eval>
+          <eval token="form.NIST">if($form.x_field$="NIST", $click.value$,"*")</eval>
+          <eval token="form.MITRE_Tactic">if($form.x_field$="MITRE Tactic", $click.value$,"*")</eval>
+          <eval token="form.MITRE_Technique">if($form.x_field$="MITRE Technique", $click.value$,"*")</eval>
+        </drilldown>
+      </chart>
+    </panel>
+  </row>
+  <row id="row2_col1">
+    <panel depends="$sankey$">
+      <title>Use Cases from Add On &gt; Data Model &gt; Sourcetype &gt; $y_field$</title>
+      <input type="dropdown" token="phase">
+        <label>Phase</label>
+        <choice value="*">Any</choice>
+        <choice value="Current">Current</choice>
+        <choice value="Phase 1 - Potential">Phase 1</choice>
+        <choice value="Phase 2 - Needs more data">Phase 2</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="sourcetype_origin">
+        <label>Sourcetypes</label>
+        <choice value="installed">Installed Sourcetypes</choice>
+        <choice value="*">All Sourcetypes</choice>
+        <default>installed</default>
+        <initialValue>installed</initialValue>
+      </input>
+      <viz type="sankey_diagram_app.sankey_diagram">
+        <title>(Requires Sankey Viz)</title>
+        <search base="usecase_base">
+          <query>| search sourcetype_origin="$sourcetype_origin$"  Status="$phase$"
+            | appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l1", count AS l1 by Sourcetype AddOn]
+| appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l2", count AS l2 by AddOn Datamodel]
+| appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l3", count AS l3 by Datamodel "$y_field$"]
+| table Description Sourcetype AddOn Datamodel "$y_field$" l1 l2 l3 "$y_field$_l1" "$y_field$_l2" "$y_field$_l3"
+| eval LinkSource=case(isnotnull(l1), Sourcetype, isnotnull(l2), AddOn, isnotnull(l3), Datamodel, 1=1,null) 
+| eval LinkDestination=case(isnotnull(l1), AddOn, isnotnull(l2), Datamodel, isnotnull(l3), '$y_field$', 1=1,null)
+| eval count=coalesce(l1,l2,l3)
+| where isnotnull(l1) OR isnotnull(l2) OR isnotnull(l3)
+| table LinkSource LinkDestination count</query>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="sankey_diagram_app.sankey_diagram.colorMode">sequential</option>
+        <option name="sankey_diagram_app.sankey_diagram.maxColor">#638771</option>
+        <option name="sankey_diagram_app.sankey_diagram.minColor">#F5F8F6</option>
+        <option name="sankey_diagram_app.sankey_diagram.numOfBins">9</option>
+        <option name="sankey_diagram_app.sankey_diagram.showLegend">true</option>
+        <option name="sankey_diagram_app.sankey_diagram.useColors">true</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </viz>
+    </panel>
+  </row>
+  <row id="cs3">
+    <panel>
+      <title>Use Cases configured in the system</title>
+      <input type="dropdown" token="phase">
+        <label>Phase</label>
+        <choice value="*">Any</choice>
+        <choice value="Current">Current</choice>
+        <choice value="Phase 1 - Potential">Phase 1 - Potential</choice>
+        <choice value="Phase 2 - Needs more data">Phase 2 - Needs more data</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="corr_data">
+        <label>Data</label>
+        <choice value="=*">Any</choice>
+        <choice value="&gt;0">Yes</choice>
+        <choice value="=0">No</choice>
+        <default>=*</default>
+      </input>
+      <input type="dropdown" token="corr_enabled">
+        <label>Enabled</label>
+        <choice value="*">Any</choice>
+        <choice value="Yes">Yes</choice>
+        <choice value="No">No</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="accelerated">
+        <label>Accelerated</label>
+        <choice value="*">Any</choice>
+        <choice value="Yes">Yes</choice>
+        <choice value="No">No</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="datamodel">
+        <label>Datamodel</label>
+        <fieldForLabel>Datamodel</fieldForLabel>
+        <fieldForValue>Datamodel</fieldForValue>
+        <search base="usecase_base">
+          <query>| stats count by Datamodel | fields Datamodel | sort 0 Datamodel</query>
+        </search>
+        <choice value="*">Any</choice>
+        <default>*</default>
+      </input>
+      <input type="multiselect" token="sourcetype">
+        <label>Sourcetype</label>
+        <fieldForLabel>Sourcetype</fieldForLabel>
+        <fieldForValue>Sourcetype</fieldForValue>
+        <search base="usecase_base">
+          <query>| stats count by Sourcetype | fields Sourcetype | sort 0 Sourcetype</query>
+        </search>
+        <choice value="*">Any</choice>
+        <default>*</default>
+        <valuePrefix>Sourcetype="</valuePrefix>
+        <delimiter> OR </delimiter>
+        <valueSuffix>"</valueSuffix>
+      </input>
+      <input type="dropdown" token="AddOn">
+        <label>Add On</label>
+        <fieldForLabel>AddOn</fieldForLabel>
+        <fieldForValue>AddOn</fieldForValue>
+        <search base="usecase_base">
+          <query>| stats count by AddOn | fields AddOn | sort 0 AddOn</query>
+        </search>
+        <choice value="*">Any</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="MITRE_Tactic">
+        <label>MITRE Tactic</label>
+        <fieldForLabel>MITRE_Tactic_Label</fieldForLabel>
+        <fieldForValue>MITRE Tactic</fieldForValue>
+        <search base="usecase_base">
+          <query>| stats count by "MITRE Tactic"
+| fields "MITRE Tactic"
+| eval MITRE_Tactic_Label='MITRE Tactic'
+| sort 0 "MITRE_Tactic_Label"</query>
+        </search>
+        <choice value="*">Any</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="MITRE_Technique">
+        <label>MITRE Technique</label>
+        <fieldForLabel>MITRE_Technique_Label</fieldForLabel>
+        <fieldForValue>MITRE Technique</fieldForValue>
+        <search base="usecase_base">
+          <query>| stats count by "MITRE Technique"
+| fields "MITRE Technique"
+| eval MITRE_Technique_Label='MITRE Technique'
+| sort 0 "MITRE_Technique_Label"</query>
+        </search>
+        <choice value="*">Any</choice>
+        <default>*</default>
+      </input>
+      <input type="checkbox" token="show_sourcetype">
+        <label>Sourcetype and AddOn</label>
+        <choice value="Sourcetype AddOn">Show</choice>
+        <change>
+          <eval token="show_sourcetype_table">if(isnull($form.show_sourcetype$) OR $form.show_sourcetype$="", " ",$form.show_sourcetype$)</eval>
+        </change>
       </input>
       <table>
+        <search base="usecase_base">
+          <query>| search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Accelerated=$accelerated$ Datamodel="$datamodel$" Status="$phase$" "MITRE Tactic"="$MITRE_Tactic$" "MITRE Technique"="$MITRE_Technique$"
+| eval sourcetypes_selected=mvfilter($sourcetype$)
+| eval Sourcetype=coalesce(sourcetypes_selected,Sourcetype)
+| fields - "Detection Search" Tags
+| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
+| rename Events AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
+| table Status "Use Case", Description,"MITRE Tactic","MITRE Technique", Enabled,Accelerated,App,Datamodel, $show_sourcetype_table$,"Providing Technologies",Hosts, "Events (DM)","Events (Sourcetype)"</query>
+        </search>
+        <option name="count">5</option>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">true</option>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"Current":#638771,"Phase 1 - Potential":#A0BBAA,"Phase 2 - Need more data":#E0E9E3}</colorPalette>
+        </format>
+        <format type="number" field="Events">
+          <option name="precision">0</option>
+        </format>
+        <format type="color" field="Events">
+          <colorPalette type="list">[#E0E9E3,#638771]</colorPalette>
+          <scale type="threshold">1</scale>
+        </format>
+        <format type="color" field="Hosts">
+          <colorPalette type="list">[#E0E9E3,#638771]</colorPalette>
+          <scale type="threshold">1</scale>
+        </format>
+        <format type="color" field="Enabled">
+          <colorPalette type="map">{"Yes":#638771,"No":#E0E9E3}</colorPalette>
+        </format>
+        <format type="color" field="Accelerated">
+          <colorPalette type="map">{"Yes":#638771,"No":#E0E9E3}</colorPalette>
+        </format>
+      </table>
+    </panel>
+  </row>
+  <row id="mitre">
+    <panel>
+      <input type="dropdown" token="phase">
+        <label>Phase</label>
+        <choice value="Current">Current</choice>
+        <choice value="Phase 1 - Potential">Phase 1</choice>
+        <choice value="Phase 2 - Needs more data">Phase 2</choice>
+      </input>
+      <table>
+        <title>MITRE Mapping</title>
         <search>
           <query>| inputlookup mitre_matrix.csv
-
-| untable x Tactic Technique
-| fields - x
-| union
-    [| rest splunk_server=local count=0 /services/saved/searches
-    | search title="ESCU - *"
-    | fields *escu*
-    | spath input="action.escu.mappings" path=cis20{} output="cis"
-    | spath input="action.escu.mappings" path=mitre_attack{} output="mitre_attack_technique"
-    | spath input="action.escu.mappings" path=kill_chain_phases{} output="kill_chain_phases"
-    | rename mitre_attack_technique AS Technique,action.escu.full_search_name AS search_name
-    | table search_name Technique
-    | stats count by Technique,search_name
-        ]
-| stats values(Tactic) AS Tactic,values(search_name) AS search_name, sum(count) as count by Technique
-| eval Tactic=coalesce(Tactic,Technique)
-| mvexpand Tactic
-| table Tactic Technique search_name count
-| where like(Tactic,"$Tactic$") AND like(Technique,"$Technique$") AND $search_name$
-| fillnull count
-| sort Tactic</query>
+| table "Initial Access",Execution,Persistence,"Privilege Escalation","Defense Evasion","Credential Access",Discovery,"Lateral Movement",Collection,Exfiltration,"Command And Control"
+| foreach * [
+| eval "&lt;&lt;FIELD&gt;&gt; Tactic" = "&lt;&lt;FIELD&gt;&gt;"
+]
+| lookup mitre_environment_count.csv Technique AS "Initial Access", "Tactic" AS "Initial Access Tactic"  OUTPUT "$phase$" AS c1
+| lookup mitre_environment_count.csv Technique AS "Execution", "Tactic" AS "Execution Tactic" OUTPUT "$phase$" AS c2
+| lookup mitre_environment_count.csv Technique AS "Persistence", "Tactic" AS "Persistence Tactic" OUTPUT "$phase$" AS c3
+| lookup mitre_environment_count.csv Technique AS "Privilege Escalation", "Tactic" AS "Privilege Escalation Tactic" OUTPUT "$phase$" AS c4
+| lookup mitre_environment_count.csv Technique AS "Defense Evasion", "Tactic" AS "Defense Evasion Tactic" OUTPUT "$phase$" AS c5
+| lookup mitre_environment_count.csv Technique AS "Credential Access", "Tactic" AS "Credential Access Tactic" OUTPUT "$phase$" AS c6
+| lookup mitre_environment_count.csv Technique AS "Discovery", "Tactic" AS "Discovery Tactic" OUTPUT "$phase$" AS c7
+| lookup mitre_environment_count.csv Technique AS "Lateral Movement", "Tactic" AS "Lateral Movement Tactic" OUTPUT "$phase$" AS c8
+| lookup mitre_environment_count.csv Technique AS "Collection", "Tactic" AS "Collection Tactic" OUTPUT "$phase$" AS c9
+| lookup mitre_environment_count.csv Technique AS "Exfiltration", "Tactic" AS "Exfiltration Tactic" OUTPUT "$phase$" AS c10
+| lookup mitre_environment_count.csv Technique AS "Command And Control", "Tactic" AS "Command And Control Tactic" OUTPUT "$phase$" AS c11
+| table "Initial Access" c1 Execution c2 Persistence c3 "Privilege Escalation" c4 "Defense Evasion" c5 "Credential Access" c6 Discovery c7 "Lateral Movement" c8 Collection c9 Exfiltration c10 "Command And Control" c11</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
-          <sampleRatio>1</sampleRatio>
         </search>
         <option name="count">100</option>
-        <option name="dataOverlayMode">none</option>
         <option name="drilldown">none</option>
-        <option name="percentagesRow">false</option>
         <option name="refresh.display">progressbar</option>
-        <option name="rowNumbers">false</option>
-        <option name="totalsRow">false</option>
-        <option name="wrap">true</option>
+        <option name="rowNumbers">true</option>
+        <format type="color" field="c1">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c2">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c3">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c4">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c5">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c6">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c7">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c8">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c9">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="c10">
+          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
       </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <html>
+          <a href="#" id="toggleinstructions" data-set-token="instructions" data-value="token_set">Toggle Instructions</a>
+           <div style="display:none;" id="instructions">
+              <h1>Instructions</h1>
+                <p>Yada yada yada</p>
+          </div>
+    </html>
     </panel>
   </row>
 </form>

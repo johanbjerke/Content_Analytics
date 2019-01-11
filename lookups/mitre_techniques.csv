@@ -21,21 +21,22 @@ count,Technique
 15,Exfiltration
 3,"Exfiltration Over Alternative Protocol"
 2,"Exfiltration Over Command and Control Channel"
+1,"Exploitation for Privilege Escalation"
 6,"Exploitation of Vulnerability"
 3,"Indicator Removal on Host"
 1,"Initial Access"
-11,"Lateral Movement"
+8,"Lateral Movement"
 1,"Local Port Monitor"
 1,Masquerading
 2,"Modify Existing Service"
 2,"Modify Registry"
-4,"New Service"
+3,"New Service"
 1,"Pass the Hash"
 32,Persistence
 6,PowerShell
-5,"Privilege Escalation"
+6,"Privilege Escalation"
 1,"Registry Run Keys / Start Folder"
-5,"Remote Desktop Protocol"
+2,"Remote Desktop Protocol"
 1,"Remote Services"
 1,Rundll32
 4,"Scheduled Task"

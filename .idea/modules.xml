@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/DataSourceOverview.iml" filepath="$PROJECT_DIR$/.idea/DataSourceOverview.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../../../../../../www/attack-navigator/.idea/attack-navigator.iml" filepath="$PROJECT_DIR$/../../../../../../../www/attack-navigator/.idea/attack-navigator.iml" />
     </modules>
   </component>
 </project>

@@ -4,8 +4,7 @@
   <view name="kill_chain_overview"/>
 <view name="nist_overview"/>
   <view name="cis_overview"/>
-  <view name="hosts_coverage"/>
-  <view name="sourcetypes"/>
+  <view name="documentation"/>
   
   <collection label="Search">
     <view name="search"  />
@@ -16,6 +15,8 @@
   </collection>
   
   <collection label="Others">    
+      <view name="hosts_coverage"/>
+  <view name="sourcetypes"/>
 	<view source="unclassified" />  
 	</collection>
 </nav>

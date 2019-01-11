@@ -459,6 +459,13 @@
         <choice value="*">Any</choice>
         <default>*</default>
       </input>
+      <input type="checkbox" token="show_sourcetype">
+        <label>Sourcetype and AddOn</label>
+        <choice value="Sourcetype AddOn">Show</choice>
+        <change>
+          <eval token="show_sourcetype_table">if(isnull($form.show_sourcetype$) OR $form.show_sourcetype$="", " ",$form.show_sourcetype$)</eval>
+        </change>
+      </input>
       <table>
         <search base="usecase_base">
           <query>| search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Accelerated=$accelerated$ Datamodel="$datamodel$" Status="$phase$" "CIS"="$CIS$"
@@ -467,13 +474,16 @@
 | fields - "Detection Search" Tags
 | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
 | rename Events AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
-| table "Use Case", Description,CIS, Enabled,Accelerated,App,Datamodel, Sourcetype, AddOn,"Providing Technologies",Hosts, "Events (DM)","Events (Sourcetype)"</query>
+| table Status "Use Case", Description,CIS, Enabled,Accelerated,App,Datamodel, $show_sourcetype_table$,"Providing Technologies",Hosts, "Events (DM)","Events (Sourcetype)"</query>
         </search>
         <option name="count">5</option>
         <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"Current":#638771,"Phase 1 - Potential":#A0BBAA,"Phase 2 - Need more data":#E0E9E3}</colorPalette>
+        </format>
         <format type="number" field="Events">
           <option name="precision">0</option>
         </format>
@@ -492,96 +502,6 @@
           <colorPalette type="map">{"Yes":#638771,"No":#E0E9E3}</colorPalette>
         </format>
       </table>
-    </panel>
-  </row>
-  <row id="mitre">
-    <panel>
-      <table>
-        <title>MITRE Mapping</title>
-        <search>
-          <query>|inputlookup mitre_matrix.csv
-| join Technique type=outer [
-| rest splunk_server=local count=0 /services/saved/searches
-| search title="ESCU - *"
-| fields *escu*
-| spath input="action.escu.mappings" path=cis20{} output="cis"
-| spath input="action.escu.mappings" path=mitre_attack{} output="mitre_attack_technique"
-| spath input="action.escu.mappings" path=kill_chain_phases{} output="kill_chain_phases"
-| table action.escu.full_search_name mitre_attack_technique
-| stats values(action.escu.full_search_name) AS search_name,count by mitre_attack_technique
-| rename mitre_attack_technique AS Technique
-| fields count Technique
-| outputlookup mitre_techniques.csv
-]
-| lookup mitre_techniques.csv Technique AS Collection OUTPUT count AS c1
-| lookup mitre_techniques.csv Technique AS "Command and Control" OUTPUT count AS c2
-| lookup mitre_techniques.csv Technique AS "Credential Access" OUTPUT count AS c3
-| lookup mitre_techniques.csv Technique AS "Defense Evasion" OUTPUT count AS c4
-| lookup mitre_techniques.csv Technique AS "Discovery" OUTPUT count AS c5
-| lookup mitre_techniques.csv Technique AS "Execution" OUTPUT count AS c6
-| lookup mitre_techniques.csv Technique AS "Exfiltration" OUTPUT count AS c7
-| lookup mitre_techniques.csv Technique AS "Lateral Movement" OUTPUT count AS c8
-| lookup mitre_techniques.csv Technique AS "Persistence" OUTPUT count AS c9
-| lookup mitre_techniques.csv Technique AS "Privilege Escalation" OUTPUT count AS c10
-| table Collection c1 "Command and Control" c2 "Credential Access" c3 "Defense Evasion" c4 "Discovery" c5 "Execution" c6 "Exfiltration" c7 "Lateral Movement" c8 "Persistence" c9 "Privilege Escalation" c10</query>
-          <earliest>-24h@h</earliest>
-          <latest>now</latest>
-        </search>
-        <option name="count">100</option>
-        <option name="drilldown">none</option>
-        <option name="rowNumbers">true</option>
-        <format type="color" field="c1">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c2">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c3">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c4">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c5">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c6">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c7">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c8">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c9">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-        <format type="color" field="c10">
-          <colorPalette type="minMidMax" maxColor="#31A35F" minColor="#FFFFFF"></colorPalette>
-          <scale type="minMidMax"></scale>
-        </format>
-      </table>
-    </panel>
-  </row>
-  <row>
-    <panel>
-      <html>
-          <a href="#" id="toggleinstructions" data-set-token="instructions" data-value="token_set">Toggle Instructions</a>
-           <div style="display:none;" id="instructions">
-              <h1>Instructions</h1>
-                <p>Yada yada yada</p>
-          </div>
-    </html>
     </panel>
   </row>
 </form>

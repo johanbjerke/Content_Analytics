@@ -42,7 +42,7 @@ Valid Accounts,Graphical User Interface,Browser Extensions,Extra Window Memory I
 ,,Re-opened Applications,,Obfuscated Files or Information,,,,,,
 ,,Redundant Access,,Plist Modification,,,,,,
 ,,Registry Run Keys / Startup Folder,,Port Knocking,,,,,,
-,,Scheduled Task,,Process Doppelg√§nging,,,,,,
+,,Scheduled Task,,Process Doppelgänging,,,,,,
 ,,Screensaver,,Process Hollowing,,,,,,
 ,,Security Support Provider,,Process Injection,,,,,,
 ,,Service Registry Permissions Weakness,,Redundant Access,,,,,,

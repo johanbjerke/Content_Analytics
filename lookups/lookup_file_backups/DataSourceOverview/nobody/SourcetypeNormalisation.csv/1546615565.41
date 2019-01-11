@@ -2,7 +2,6 @@ Sourcetype,Normalised
 websense*,websense:cg:kv
 cisco:esa*,cisco:esa
 *WinEventLog:Security,WinEventLog:Security
-*wineventlog:security,WinEventLog:Security
 *sysmon*,XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
 bluecoat:proxysg:access*,bluecoat:proxysg:access:file
 bluecoat:proxysg:access*,bluecoat:proxysg:access:syslog
@@ -39,5 +38,3 @@ symantec:ep:*:file,symantec:ep:security:file
 symantec:ep:*:file,symantec:ep:traffic:file
 wineventlog:security,WinEventLog:Security
 xmlwineventlog:microsoft-windows-sysmon/operational,XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
-netscreen*firewall,netscreen:firewall
-winhostmon,WinHostMon

@@ -1,0 +1,10 @@
+<dashboard>
+  <label>Documentation</label>
+  <row>
+    <panel>
+  <html>
+    <h1>How does it all work?</h1>
+  </html>
+  </panel>
+  </row>
+</dashboard>
