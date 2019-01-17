@@ -1,6 +1,5 @@
 <form script="tabs.js,dashboard.js" stylesheet="tabs.css" theme="light">
-  <label>Kill Chain Coverage</label>
-  <description>Each number represents a detection search</description>
+  <label>Cyber Kill Chain Coverage</label>
   <init>
     <set token="chart_post_process">| append
 [
@@ -154,18 +153,16 @@
 
 </query>
   </search>
-  <fieldset submitButton="false">
-    <input type="time" token="field1" searchWhenChanged="true">
-      <label></label>
-      <default>
-        <earliest>-24h@h</earliest>
-        <latest>now</latest>
-      </default>
-      <change>
-        <set token="time_label">$label$</set>
-      </change>
-    </input>
-  </fieldset>
+  <fieldset submitButton="false"></fieldset>
+  <row>
+    <panel>
+      <html>
+        Each number represents a detection search <br/>
+  For more details check the <a href="https://www.lockheedmartin.com/en-us/capabilities/cyber/cyber-kill-chain.html" target="_blank">Cyber Kill Chain</a>
+  
+      </html>
+    </panel>
+  </row>
   <row id="cs2">
     <panel>
       <single>
@@ -327,7 +324,7 @@
         <option name="charting.chart">column</option>
         <option name="charting.chart.stackMode">stacked</option>
         <option name="charting.drilldown">all</option>
-        <option name="charting.fieldColors">{"Current": 0x638771, "Phase 1 - Potential": 0xA0BBAA, "Phase 2 - Needs more data":0xE0E9E3, "Yes":0x638771, "No":0xE0E9E3, "Enabled":0x638771, "Disabled":0xE0E9E3}</option>
+        <option name="charting.fieldColors">{"Current": 0x638771, "Phase 1 - Potential": 0xA0BBAA, "Phase 2 - Needs more data":0xE0E9E3, "Yes":0x638771, "No":0xE0E9E3, "Enabled":0x638771, "Disabled":0xE0E9E3,"Selected":0xEC9960}</option>
         <option name="height">310</option>
         <option name="refresh.display">progressbar</option>
         <drilldown>
@@ -490,7 +487,7 @@
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>
         <format type="color" field="Status">
-          <colorPalette type="map">{"Current":#638771,"Phase 1 - Potential":#A0BBAA,"Phase 2 - Need more data":#E0E9E3}</colorPalette>
+          <colorPalette type="map">{"Current":#638771,"Phase 1 - Potential":#A0BBAA,"Phase 2 - Needs more data":#E0E9E3,"Selected":0xEC9960}</colorPalette>
         </format>
         <format type="number" field="Events">
           <option name="precision">0</option>

@@ -109,6 +109,10 @@ testport,"TA-webtools",installed,0
 "python_modular_input.log-41",learned,installed,0
 "python_modular_input.log-42",learned,installed,0
 "python_modular_input.log-43",learned,installed,0
+"python_modular_input.log-44",learned,installed,0
+"python_modular_input.log-45",learned,installed,0
+"python_modular_input.log-46",learned,installed,0
+"python_modular_input.log-47",learned,installed,0
 "python_modular_input.log-5",learned,installed,0
 "python_modular_input.log-6",learned,installed,0
 "python_modular_input.log-7",learned,installed,0
@@ -118,6 +122,7 @@ testport,"TA-webtools",installed,0
 "rest_handler-too_small",learned,installed,0
 "risk_modalert-too_small",learned,installed,0
 "splunk_archiver-2",learned,installed,0
+"splunk_archiver-3",learned,installed,0
 "splunk_archiver-too_small",learned,installed,0
 "splunk_instrumentation-2",learned,installed,0
 "splunk_instrumentation-too_small",learned,installed,0

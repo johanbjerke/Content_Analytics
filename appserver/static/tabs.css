@@ -16,3 +16,8 @@
 #tab_1 > .dashboard-cell > .dashboard-panel{
     border-top: 0px;
 }
+/* This makes the Details column wider to display nice */
+
+td[data-cell-index="3"] {
+  min-width:220px;
+}

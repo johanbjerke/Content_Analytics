@@ -1,9 +1,11 @@
 <form script="tabs.js,dashboard.js" stylesheet="tabs.css" theme="light">
-  <label>CIS Coverage</label>
+  <label>CIS Controls Coverage</label>
   <description>Each number represents a detection search</description>
   <init>
     <set token="chart_post_process">| eval CIS=if(len(CIS)=5, "CIS 0".substr(CIS,5,1),CIS)
 | sort CIS</set>
+    <set token="addsample"></set>
+    <set token="replacewithsample"></set>
   </init>
   <search>
     <query>| makeresults count=1
@@ -79,6 +81,7 @@
 | eval Sourcetype=mvdedup(coalesce(Normalised,SourcetypeFromSource,Sourcetype))
 | eval sourcetype_origin="from_use_case"
 | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin2, app AS AddOn
+| lookup Sample_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin_sample, app AS AddOn_sample
 | eval sourcetype_origin=coalesce(sourcetype_origin2,sourcetype_origin)
 | fields - sourcetype_origin2
 
@@ -112,6 +115,7 @@
         | fields sourcetype tag_name app_sourcetype app 
         | stats values(tag_name) as tag_name by app, sourcetype,app_sourcetype
             ] 
+    $addsample$
     | stats first(Hosts) AS Hosts,sum(EventCount) AS "EventCount",first(totalCount) AS totalCount,list(datamodel) as datamodel, list(app) as app, list(app_sourcetype) as app_sourcetype by tag_name 
     | search datamodel=* 
     | eval datamodel=mvdedup(datamodel) 
@@ -124,35 +128,46 @@
     | lookup Datamodel_Event_Summary.csv datamodel
     | rename datamodel AS Datamodel, tags as Tags, sourcetype AS Sourcetype, app AS AddOn
     | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin
+    | lookup Sample_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin_sample, app AS AddOn_sample 
     | fillnull Hosts 
     | eval Acceleration=round(Acceleration,2)
         ]
-
+$replacewithsample$
 | eval Datamodel=coalesce(Datamodel,"-")
 | eval AddOn=coalesce(split(replace(AddOn,"\n","---"),"---"),AddOn,"-"),Sourcetype=coalesce(split(replace(Sourcetype,"\n","---"),"---"),Sourcetype,"-"),sourcetype_origin=coalesce(split(replace(sourcetype_origin,"\n","---"),"---"),sourcetype_origin,"-")
+| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
 | eval Accelerated=if(Acceleration&gt;0, "Yes","No")
 | eval "Enabled and Accelerated"=if(Acceleration&gt;0 AND Enabled="Yes", "Yes","No")
-| eval "Has Data"=if(EventCount&gt;0, "Yes", "No")
+| eval "Has Data (DM)"=if(EventCount&gt;0, "Yes", "No")
+| eval "Has Data (Index)"=if('EventCount (Sourcetype)'&gt;0, "Yes", "No")
 | eval Status=case(
-'Enabled'="Yes" AND 'Has Data'="Yes","Current",
-'Has Data'="Yes","Phase 1 - Potential",
+'Enabled'="Yes" AND ('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"Current",
+('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"Phase 1 - Potential",
 1=1,"Phase 2 - Needs more data"
 )
+| rename EventCount AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
+| eval "Detection Type"=if(Datamodel!="-", "Datamodel", "Index")
+| eventstats dc(Sourcetype) AS "Sourcetypes Installed Count" BY "Use Case"
+| eval Details="Detection Enabled: ".Enabled
+| eval Details=mvappend(Details, "Detection Type: ".'Detection Type')
+| eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Datamodel accelerated: ".if(coalesce('Acceleration',0)&gt;0,"Yes","No")),Details)
+| eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Datamodel has data (-24h): ".'Has Data (DM)'),Details)
+| eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Hosts with data (-24h): ".'Hosts'),Details)
+| eval Details=if('Detection Type'="Index",mvappend(Details, "Indexed data exists (-24h): ".'Has Data (Index)'),Details)
+| eval Details=mvappend(Details, "Sourcetypes Installed: ".'Sourcetypes Installed Count')
 
 </query>
   </search>
-  <fieldset submitButton="false">
-    <input type="time" token="field1" searchWhenChanged="true">
-      <label></label>
-      <default>
-        <earliest>-24h@h</earliest>
-        <latest>now</latest>
-      </default>
-      <change>
-        <set token="time_label">$label$</set>
-      </change>
-    </input>
-  </fieldset>
+  <fieldset submitButton="false"></fieldset>
+  <row>
+    <panel>
+      <html>
+        Each number represents a detection search <br/>
+  For more details check the <a href="https://www.cisecurity.org/controls/" target="_blank">CIS Controls</a>
+  
+      </html>
+    </panel>
+  </row>
   <row id="cs2">
     <panel>
       <single>
@@ -297,17 +312,57 @@
         <default>*</default>
       </input>
       <input type="dropdown" token="sourcetype_origin">
-        <label>Sourcetypes</label>
+        <label>Sourcetype origin</label>
         <choice value="installed">Installed Sourcetypes</choice>
+        <choice value="sample">Sample Sourcetypes</choice>
         <choice value="*">All Sourcetypes</choice>
         <default>installed</default>
         <initialValue>installed</initialValue>
+        <change>
+          <condition label="Sample Sourcetypes">
+            <set token="addsample">| append [
+        | inputlookup Sample_sourcetypes.csv
+        | eval tag_name=split(tag_name,",")
+        | fields Sourcetype tag_name app_sourcetype app
+        | stats values(tag_name) as tag_name by app, Sourcetype,app_sourcetype
+        | rename Sourcetype AS sourcetype
+            ]</set>
+            <set token="replacewithsample">| eval sourcetype_origin=sourcetype_origin_sample
+              | eval AddOn=AddOn_sample</set>
+          </condition>
+          <condition label="*">
+            <set token="addsample"></set>
+            <set token="replacewithsample"></set>
+          </condition>
+        </change>
+      </input>
+      <input type="multiselect" token="sourcetype_selection">
+        <label>Sourcetype selection</label>
+        <fieldForLabel>Sourcetype</fieldForLabel>
+        <fieldForValue>Sourcetype</fieldForValue>
+        <search base="usecase_base">
+          <query>| stats count by Sourcetype | fields Sourcetype | sort 0 Sourcetype</query>
+        </search>
+        <choice value="*">None</choice>
+        <default>*</default>
+        <valuePrefix>"</valuePrefix>
+        <delimiter>,</delimiter>
+        <valueSuffix>"</valueSuffix>
       </input>
       <chart>
         <search base="usecase_base">
-          <query>| search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
+          <query>
+            | eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+            | search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
 | chart count over "$x_field$" By "$y_field$"
-              $chart_post_process$</query>
+| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
+| fields - m
+| eval "Phase 2 - Needs more data"=if(Selected_New=0 AND Selected&gt;0, 'Phase 2 - Needs more data'+Selected, 'Phase 2 - Needs more data')
+| rename Selected_New AS Selected
+              $chart_post_process$
+              
+              </query>
         </search>
         <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
         <option name="charting.axisLabelsX.majorLabelStyle.rotation">-45</option>
@@ -318,7 +373,7 @@
         <option name="charting.chart">column</option>
         <option name="charting.chart.stackMode">stacked</option>
         <option name="charting.drilldown">all</option>
-        <option name="charting.fieldColors">{"Current": 0x638771, "Phase 1 - Potential": 0xA0BBAA, "Phase 2 - Needs more data":0xE0E9E3, "Yes":0x638771, "No":0xE0E9E3, "Enabled":0x638771, "Disabled":0xE0E9E3}</option>
+        <option name="charting.fieldColors">{"Current": 0x638771, "Phase 1 - Potential": 0xA0BBAA, "Phase 2 - Needs more data":0xE0E9E3, "Yes":0x638771, "No":0xE0E9E3, "Enabled":0x638771, "Disabled":0xE0E9E3,"Selected":0xEC9960}</option>
         <option name="height">310</option>
         <option name="refresh.display">progressbar</option>
         <drilldown>
@@ -356,7 +411,9 @@
       <viz type="sankey_diagram_app.sankey_diagram">
         <title>(Requires Sankey Viz)</title>
         <search base="usecase_base">
-          <query>| search sourcetype_origin="$sourcetype_origin$"  Status="$phase$"
+          <query>
+            | eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+            | search sourcetype_origin="$sourcetype_origin$"  Status="$phase$"
             | appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l1", count AS l1 by Sourcetype AddOn]
 | appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l2", count AS l2 by AddOn Datamodel]
 | appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l3", count AS l3 by Datamodel "$y_field$"]
@@ -390,6 +447,7 @@
         <choice value="Current">Current</choice>
         <choice value="Phase 1 - Potential">Phase 1 - Potential</choice>
         <choice value="Phase 2 - Needs more data">Phase 2 - Needs more data</choice>
+        <choice value="Selected">Selected Sourcetypes</choice>
         <default>*</default>
       </input>
       <input type="dropdown" token="corr_data">
@@ -424,7 +482,7 @@
         <default>*</default>
       </input>
       <input type="multiselect" token="sourcetype">
-        <label>Sourcetype</label>
+        <label>Sourcetype filter</label>
         <fieldForLabel>Sourcetype</fieldForLabel>
         <fieldForValue>Sourcetype</fieldForValue>
         <search base="usecase_base">
@@ -468,13 +526,15 @@
       </input>
       <table>
         <search base="usecase_base">
-          <query>| search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Accelerated=$accelerated$ Datamodel="$datamodel$" Status="$phase$" "CIS"="$CIS$"
+          <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+            | eval CIS=if(len(CIS)=5, "CIS 0".substr(CIS,5,1),CIS)
+            | search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Accelerated=$accelerated$ Datamodel="$datamodel$" Status="$phase$" "CIS"="$CIS$"
 | eval sourcetypes_selected=mvfilter($sourcetype$)
 | eval Sourcetype=coalesce(sourcetypes_selected,Sourcetype)
 | fields - "Detection Search" Tags
 | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
 | rename Events AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
-| table Status "Use Case", Description,CIS, Enabled,Accelerated,App,Datamodel, $show_sourcetype_table$,"Providing Technologies",Hosts, "Events (DM)","Events (Sourcetype)"</query>
+| table Status "Use Case", Description, Details,CIS,App,Datamodel, $show_sourcetype_table$</query>
         </search>
         <option name="count">5</option>
         <option name="drilldown">none</option>
@@ -482,7 +542,7 @@
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>
         <format type="color" field="Status">
-          <colorPalette type="map">{"Current":#638771,"Phase 1 - Potential":#A0BBAA,"Phase 2 - Need more data":#E0E9E3}</colorPalette>
+          <colorPalette type="map">{"Current":#638771,"Phase 1 - Potential":#A0BBAA,"Phase 2 - Needs more data":#E0E9E3,"Selected":0xEC9960}</colorPalette>
         </format>
         <format type="number" field="Events">
           <option name="precision">0</option>

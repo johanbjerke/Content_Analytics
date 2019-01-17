@@ -15,11 +15,11 @@ import = DA-ESS-AccessProtection, DA-ESS-ContentUpdate, DA-ESS-IdentityManagemen
 
 [views/data_source_overview]
 version = 7.2.0
-modtime = 1547214349.156231000
+modtime = 1547717200.179153000
 
 [views/mitre_overview]
 version = 7.2.0
-modtime = 1547215096.683561000
+modtime = 1547720026.020746000
 
 [nav/default]
 version = 7.2.0
@@ -36,7 +36,7 @@ modtime = 1545311009.535606000
 
 [views/kill_chain_overview]
 version = 7.2.0
-modtime = 1547214739.607138000
+modtime = 1547718516.246131000
 
 [macros/getsse]
 access = read : [ * ], write : [ admin ]
@@ -83,11 +83,11 @@ modtime = 1545311207.137622000
 
 [views/cis_overview]
 version = 7.2.0
-modtime = 1547214705.169277000
+modtime = 1547719379.192655000
 
 [views/nist_overview]
 version = 7.2.0
-modtime = 1547214716.739251000
+modtime = 1547719471.208491000
 
 [lookups/mitre_matrix.csv]
 version = 7.2.0
