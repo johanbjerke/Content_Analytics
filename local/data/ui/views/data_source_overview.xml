@@ -54,14 +54,20 @@
   <search id="usecase_base">
     <query>
 | rest splunk_server=local count=0 /services/saved/searches search=action.correlationsearch.enabled
-| rename eai:acl.app as app, title as csearch_name, action.correlationsearch.label as csearch_label, action.notable.param.security_domain as security_domain, action.escu.providing_technologies AS providing_technologies
+| rename eai:acl.app as app, title as csearch_name, action.correlationsearch.label as csearch_label, action.notable.param.security_domain as security_domain, action.escu.providing_technologies AS providing_technologies, action.escu.analytic_story AS analytic_story
 | append [ `getsse` ]
 | rex field=qualifiedSearch ".*datamodel(=\"|:\"|\(\"|\s|:|=)(\"|)(?&lt;datamodel&gt;[a-z,A-Z,_]*)"
 | lookup Datamodel_Event_Summary.csv datamodel
 | eval csearch_label=coalesce(csearch_label,csearch_name)
 | fillnull EventCount Hosts
-| fields action.escu.mappings csearch_label description qualifiedSearch datamodel EventCount Hosts disabled app displayapp security_domain providing_technologies usecase hasSearch includeSSE datasource displayapp app journey category domain icon description dashboard mitre killchain alertvolume bookmark_status
+| fields action.escu.mappings analytic_story csearch_label description qualifiedSearch datamodel EventCount Hosts disabled app displayapp security_domain providing_technologies usecase hasSearch includeSSE datasource displayapp app journey category domain icon description dashboard mitre killchain alertvolume bookmark_status
 | where len(description)&gt;0
+
+| spath input="analytic_story" path="{}" output="analytic_story"
+| eval deeplink=urldecode(case(
+isnotnull(analytic_story),"/app/SplunkEnterpriseSecuritySuite/ess_analytic_story_details?analytic_story".replace(mvindex(analytic_story,0), "\s", "%20"),
+isnotnull(dashboard),"/app/Splunk_Security_Essentials/".replace(dashboard, "\s", "%20")
+,1=1,null))
 
 | spath input="action.escu.mappings" path=cis20{} output="CIS"
 | spath input="action.escu.mappings" path=mitre_attack{} output="MITRE Attack Technique"
@@ -492,10 +498,16 @@ $chart_post_process$</query>
 | fields - "Detection Search" Tags
 | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
 | rename Events AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
-| table Status "Use Case", Description, Details,App,Datamodel, $show_sourcetype_table$</query>
+| table Status "Use Case", Description, Details,deeplink,App,Datamodel, $show_sourcetype_table$</query>
         </search>
         <option name="count">5</option>
-        <option name="drilldown">none</option>
+        <drilldown>
+          <link target="_blank"><![CDATA[
+          $row.deeplink$
+          ]]></link>
+        </drilldown>
+       
+        <option name="drilldown">cell</option>
         <option name="refresh.display">progressbar</option>
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>

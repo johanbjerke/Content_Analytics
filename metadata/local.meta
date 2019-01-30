@@ -15,7 +15,7 @@ import = DA-ESS-AccessProtection, DA-ESS-ContentUpdate, DA-ESS-IdentityManagemen
 
 [views/data_source_overview]
 version = 7.2.0
-modtime = 1547717200.179153000
+modtime = 1548354722.961131000
 
 [views/mitre_overview]
 version = 7.2.0
@@ -36,7 +36,7 @@ modtime = 1545311009.535606000
 
 [views/kill_chain_overview]
 version = 7.2.0
-modtime = 1547718516.246131000
+modtime = 1548346388.892566000
 
 [macros/getsse]
 access = read : [ * ], write : [ admin ]
