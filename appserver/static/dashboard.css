@@ -33,8 +33,14 @@ span.red {
 span.green {
     color:green;
 }
-
-#dashboard-form-controls #inputControls label[data-original-title] {
+.dashboard-form-fieldset label {
+    display: inline-block;
+}
+.dashboard-form-fieldset label[data-original-title] {
     border: dashed #bbb;
     border-width: 0 0 1px;
+}
+.tooltip p {
+    text-align:left;
+    color:#fff;
 }

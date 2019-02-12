@@ -15,15 +15,15 @@ import = DA-ESS-AccessProtection, DA-ESS-ContentUpdate, DA-ESS-IdentityManagemen
 
 [views/data_source_overview]
 version = 7.2.0
-modtime = 1548354722.961131000
+modtime = 1549968682.329533000
 
 [views/mitre_overview]
 version = 7.2.0
-modtime = 1547720026.020746000
+modtime = 1549968762.556035000
 
 [nav/default]
 version = 7.2.0
-modtime = 1547206451.574569000
+modtime = 1548847618.507043000
 
 [views/sourcetypes]
 version = 7.2.0
@@ -36,7 +36,7 @@ modtime = 1545311009.535606000
 
 [views/kill_chain_overview]
 version = 7.2.0
-modtime = 1548346388.892566000
+modtime = 1549968776.940072000
 
 [macros/getsse]
 access = read : [ * ], write : [ admin ]
@@ -72,7 +72,7 @@ access = read : [ * ], write : [ admin ]
 export = none
 owner = admin
 version = 7.2.0
-modtime = 1545236993.899407000
+modtime = 1549558826.069450000
 
 [transforms/kill_chain_phases]
 access = read : [ * ], write : [ admin ]
@@ -83,11 +83,11 @@ modtime = 1545311207.137622000
 
 [views/cis_overview]
 version = 7.2.0
-modtime = 1547719379.192655000
+modtime = 1549968739.743810000
 
 [views/nist_overview]
 version = 7.2.0
-modtime = 1547719471.208491000
+modtime = 1549968714.564500000
 
 [lookups/mitre_matrix.csv]
 version = 7.2.0
@@ -103,7 +103,7 @@ modtime = 1546529193.452733000
 [views/documentation]
 owner = admin
 version = 7.2.0
-modtime = 1547206406.641744000
+modtime = 1549558904.616604000
 
 [savedsearches/Generate%20MITRE%20matrix%20list]
 access = read : [ * ], write : [ admin ]
@@ -111,3 +111,15 @@ export = none
 owner = admin
 version = 7.2.0
 modtime = 1547210448.402485000
+
+[lookups/use_cases.csv]
+owner = admin
+version = 7.2.0
+modtime = 1549310623.776002000
+
+[savedsearches/Generate%20Datamodel%20Event%20Summary%20-%20Scheduled]
+access = read : [ * ], write : [ admin ]
+export = none
+owner = admin
+version = 7.2.0
+modtime = 1549558842.620106000

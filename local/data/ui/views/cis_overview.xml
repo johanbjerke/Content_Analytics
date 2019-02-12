@@ -1,31 +1,13 @@
-<form script="tabs.js,dashboard.js" stylesheet="tabs.css" theme="light">
-  <label>CIS Controls Coverage</label>
+<form script="dashboard.js" stylesheet="dashboard.css" theme="light">
+  <label>CIS Controls</label>
   <description>Each number represents a detection search</description>
   <init>
     <set token="chart_post_process">| eval CIS=if(len(CIS)=5, "CIS 0".substr(CIS,5,1),CIS)
 | sort CIS</set>
     <set token="addsample"></set>
     <set token="replacewithsample"></set>
+    <set token="y_field">Status</set>
   </init>
-  <search>
-    <query>| makeresults count=1
-| append [|inputlookup Datamodel_Event_Summary.csv]
-| eventstats sum(eval(if(isnull(datamodel),0,1))) AS datamodelcount,count
-| where datamodelcount=0 AND isnull(datamodel)
-| eval s=if(datamodelcount=0 AND count=1,"
-| makeresults count=1
-| eval _time=now(),datamodel=\"\", Acceleration=\"\",EventCount=\"\",Hosts=\"\"
-| outputlookup createinapp=t Datamodel_Event_Summary.csv
-",
-""
-)
-| map maxsearches=1 search="
-| rest /services/search/jobs/export search=\"$s$\"  output_mode=csv  | fields value
-"
-</query>
-    <earliest>-24h@h</earliest>
-    <latest>now</latest>
-  </search>
   <search>
     <query>| rest splunk_server=local /services/apps/local | search disabled=0 title=*sankey*</query>
     <done>
@@ -38,19 +20,6 @@
         <set token="sankey">sankey</set>
       </condition>
     </done>
-  </search>
-  <search>
-    <query>| `datamodel("Splunk_Audit", "Datamodel_Acceleration")`
-| rename Datamodel_Acceleration.datamodel AS datamodel, Datamodel_Acceleration.complete AS Acceleration
-| lookup Datamodel_Event_Summary.csv datamodel OUTPUT _time
-| where isnull(_time) OR _time&lt;=relative_time(now(), "-24h")
-| map maxsearches=100 search="
-| tstats count AS EventCount,dc(host) AS Hosts from datamodel=$datamodel$ WHERE earliest=\"-24h\" | eval datamodel=\"$datamodel$\",Acceleration=\"$Acceleration$\"
-            "
-| eval _time=now()
-| outputlookup createinapp=t Datamodel_Event_Summary.csv</query>
-    <earliest>-24h@h</earliest>
-    <latest>now</latest>
   </search>
   <search id="usecase_base">
     <query>
@@ -89,7 +58,7 @@
 | rex field=providing_technologies mode=sed "s/[\"\[\]]//g"
 | eval providing_technologies=trim(providing_technologies)
 
-| rename csearch_label AS "Use Case", description AS Description, qualifiedSearch as "Detection Search", datamodel AS Datamodel, EventCount AS Events, providing_technologies AS "Providing Technologies"
+| rename csearch_label AS "Title", description AS Description, qualifiedSearch as "Detection Search", datamodel AS Datamodel, EventCount AS Events, providing_technologies AS "Providing Technologies"
 | eval Enabled=if(disabled=1, "No", "Yes")
 | eval App=case(app="DA-ESS-ContentUpdate", "ES Content Updates", like(app,"SA-%") OR like(app,"DA-%"), "Enterprise Security", like(Description,"%Security Essentials%"), "Splunk Security Essentials",isnotnull(displayapp),displayapp,1=1, app)
 | join type=outer Datamodel 
@@ -147,7 +116,7 @@ $replacewithsample$
 )
 | rename EventCount AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
 | eval "Detection Type"=if(Datamodel!="-", "Datamodel", "Index")
-| eventstats dc(Sourcetype) AS "Sourcetypes Installed Count" BY "Use Case"
+| eventstats dc(eval(if(Sourcetype="-",null,Sourcetype))) AS "Sourcetypes Installed Count",dc(eval(if(AddOn="-",null,AddOn))) AS "AddOns Installed Count" BY "Title"
 | eval Details="Detection Enabled: ".Enabled
 | eval Details=mvappend(Details, "Detection Type: ".'Detection Type')
 | eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Datamodel accelerated: ".if(coalesce('Acceleration',0)&gt;0,"Yes","No")),Details)
@@ -155,6 +124,7 @@ $replacewithsample$
 | eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Hosts with data (-24h): ".'Hosts'),Details)
 | eval Details=if('Detection Type'="Index",mvappend(Details, "Indexed data exists (-24h): ".'Has Data (Index)'),Details)
 | eval Details=mvappend(Details, "Sourcetypes Installed: ".'Sourcetypes Installed Count')
+| eval Details=mvappend(Details, "Add-Ons Installed: ".'AddOns Installed Count')
 
 </query>
   </search>
@@ -162,7 +132,7 @@ $replacewithsample$
   <row>
     <panel>
       <html>
-        Each number represents a detection search <br/>
+        Each number represents a piece of content<br/>
   For more details check the <a href="https://www.cisecurity.org/controls/" target="_blank">CIS Controls</a>
   
       </html>
@@ -171,7 +141,7 @@ $replacewithsample$
   <row id="cs2">
     <panel>
       <single>
-        <title>Current coverage</title>
+        <title>Current</title>
         <search base="usecase_base">
           <query>| where Status="Current"
 | stats count</query>
@@ -181,7 +151,7 @@ $replacewithsample$
         <option name="rangeColors">["0x638771","0x3c444d"]</option>
         <option name="rangeValues">[1000]</option>
         <option name="refresh.display">progressbar</option>
-        <option name="underLabel">Use Cases (Enabled)</option>
+        <option name="underLabel">Content (Enabled)</option>
         <option name="useColors">1</option>
         <drilldown>
           <set token="form.corr_enabled">Yes</set>
@@ -192,7 +162,7 @@ $replacewithsample$
     </panel>
     <panel>
       <single>
-        <title>Phase 1 - Potential coverage</title>
+        <title>Phase 1 - Potential</title>
         <search base="usecase_base">
           <query>| where Status="Phase 1 - Potential"
 | stats count</query>
@@ -202,7 +172,7 @@ $replacewithsample$
         <option name="rangeColors">["0xA0BBAA","0x3c444d"]</option>
         <option name="rangeValues">[1000]</option>
         <option name="refresh.display">progressbar</option>
-        <option name="underLabel">Use Cases (Data Exist)</option>
+        <option name="underLabel">Content (Data Exist)</option>
         <option name="useColors">1</option>
         <drilldown>
           <set token="form.corr_enabled">No</set>
@@ -223,7 +193,7 @@ $replacewithsample$
         <option name="rangeColors">["0xE0E9E3","0x3c444d"]</option>
         <option name="rangeValues">[10000]</option>
         <option name="refresh.display">progressbar</option>
-        <option name="underLabel">Use Cases (Total)</option>
+        <option name="underLabel">Content (Total)</option>
         <option name="useColors">1</option>
         <drilldown>
           <set token="form.corr_enabled">*</set>
@@ -236,16 +206,13 @@ $replacewithsample$
   <row id="tabs">
     <panel>
       <html>
-      <h1>Use Case Overview - Click to filter</h1>
+      <h1>Content Overview - Click to filter</h1>
       <ul id="tabs" class="nav nav-tabs">
                     <li class="active">
                         <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row1_col1" data-token="row1_col1">Chart View</a>
                     </li>
                     <li>
                         <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row2_col1" data-token="row2_col1">Sankey View</a>
-                    </li>
-                    <li>
-                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row1_col3" data-token="row1_col3">Stats View</a>
                     </li>
 				</ul>
 				
@@ -255,19 +222,10 @@ $replacewithsample$
   </row>
   <row id="row1_col1">
     <panel>
-      <input type="dropdown" token="y_field">
-        <label>Y-Axis</label>
-        <choice value="Status">Status</choice>
-        <choice value="Has Data">Has data</choice>
-        <choice value="Enabled">Enabled</choice>
-        <choice value="Accelerated">Accelerated</choice>
-        <choice value="Enabled and Accelerated">Enabled and Accelerated</choice>
-        <default>Status</default>
-      </input>
       <input type="dropdown" token="x_field">
-        <label>X-Axis</label>
+        <label>Split by</label>
         <choice value="Datamodel">Datamodel</choice>
-        <choice value="AddOn">Add On</choice>
+        <choice value="AddOn">Add-On</choice>
         <choice value="App">App</choice>
         <choice value="Sourcetype">Sourcetype</choice>
         <choice value="CIS">CIS</choice>
@@ -379,7 +337,8 @@ $replacewithsample$
         <drilldown>
           <eval token="form.corr_enabled">if($form.y_field$="Enabled" OR $form.y_field$="Enabled and Accelerated", $click.name2$,"*")</eval>
           <eval token="form.accelerated">if($form.y_field$="Accelerated" OR $form.y_field$="Enabled and Accelerated", $click.name2$,"*")</eval>
-          <eval token="form.status">if($form.y_field$="Status", $click.name2$,"*")</eval>
+          <eval token="form.status">$click.name2$</eval>
+          <eval token="form.phase">$click.name2$</eval>
           <eval token="form.sourcetype">if($form.x_field$="Sourcetype", $click.value$,"*")</eval>
           <eval token="form.datamodel">if($form.x_field$="Datamodel", $click.value$,"*")</eval>
           <eval token="form.AddOn">if($form.x_field$="AddOn", $click.value$,"*")</eval>
@@ -392,7 +351,7 @@ $replacewithsample$
   </row>
   <row id="row2_col1">
     <panel depends="$sankey$">
-      <title>Use Cases from Add On &gt; Data Model &gt; Sourcetype &gt; $y_field$</title>
+      <title>Content from Add-On &gt; Data Model &gt; Sourcetype &gt; $y_field$</title>
       <input type="dropdown" token="phase">
         <label>Phase</label>
         <choice value="*">Any</choice>
@@ -440,7 +399,7 @@ $replacewithsample$
   </row>
   <row id="cs3">
     <panel>
-      <title>Use Cases configured in the system</title>
+      <title>Content configured in the system</title>
       <input type="dropdown" token="phase">
         <label>Phase</label>
         <choice value="*">Any</choice>
@@ -459,13 +418,6 @@ $replacewithsample$
       </input>
       <input type="dropdown" token="corr_enabled">
         <label>Enabled</label>
-        <choice value="*">Any</choice>
-        <choice value="Yes">Yes</choice>
-        <choice value="No">No</choice>
-        <default>*</default>
-      </input>
-      <input type="dropdown" token="accelerated">
-        <label>Accelerated</label>
         <choice value="*">Any</choice>
         <choice value="Yes">Yes</choice>
         <choice value="No">No</choice>
@@ -495,7 +447,7 @@ $replacewithsample$
         <valueSuffix>"</valueSuffix>
       </input>
       <input type="dropdown" token="AddOn">
-        <label>Add On</label>
+        <label>Add-On</label>
         <fieldForLabel>AddOn</fieldForLabel>
         <fieldForValue>AddOn</fieldForValue>
         <search base="usecase_base">
@@ -518,23 +470,30 @@ $replacewithsample$
         <default>*</default>
       </input>
       <input type="checkbox" token="show_sourcetype">
-        <label>Sourcetype and AddOn</label>
+        <label>Sourcetype and Add-On</label>
         <choice value="Sourcetype AddOn">Show</choice>
         <change>
           <eval token="show_sourcetype_table">if(isnull($form.show_sourcetype$) OR $form.show_sourcetype$="", " ",$form.show_sourcetype$)</eval>
         </change>
       </input>
-      <table>
+      <input type="checkbox" token="show_search">
+        <label>Search</label>
+        <choice value="&quot;Detection Search&quot;">Show</choice>
+        <change>
+          <eval token="show_search_table">if(isnull($form.show_search$) OR $form.show_search$="", " ",$form.show_search$)</eval>
+        </change>
+      </input>
+      <table id="content_table">
         <search base="usecase_base">
           <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
             | eval CIS=if(len(CIS)=5, "CIS 0".substr(CIS,5,1),CIS)
-            | search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Accelerated=$accelerated$ Datamodel="$datamodel$" Status="$phase$" "CIS"="$CIS$"
+            | search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "CIS"="$CIS$"
 | eval sourcetypes_selected=mvfilter($sourcetype$)
 | eval Sourcetype=coalesce(sourcetypes_selected,Sourcetype)
-| fields - "Detection Search" Tags
+| fields -  Tags
 | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
 | rename Events AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
-| table Status "Use Case", Description, Details,CIS,App,Datamodel, $show_sourcetype_table$</query>
+| table Status "Title", Description, Details,$show_search_table$,CIS,App,Datamodel, $show_sourcetype_table$</query>
         </search>
         <option name="count">5</option>
         <option name="drilldown">none</option>

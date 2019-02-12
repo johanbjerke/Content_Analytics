@@ -1,7 +1,0 @@
-uba_field_name,cim_field_name,required
-﻿dhcpAction,signature,Y
-dhcpLeaseTime,lease_duration,Y
-sourceIp,dest_ip,Y
-internalFQDN,dest_nt_host,N
-macAddress,dest_mac,Y
-evcls,signature,Y

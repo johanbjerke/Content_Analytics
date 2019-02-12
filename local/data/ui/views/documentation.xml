@@ -2,9 +2,84 @@
   <label>Documentation</label>
   <row>
     <panel>
-  <html>
+      <html>
     <h1>How does it all work?</h1>
   </html>
-  </panel>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Lookup dependencies</title>
+      <table>
+        <search>
+          <query>| makeresults count=5 
+</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">cell</option>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"Good":#53A051,"Bad":#DC4E41}</colorPalette>
+        </format>
+        <format type="color" field="Disabled">
+          <colorPalette type="map">{"0":#53A051,"1":#DC4E41}</colorPalette>
+        </format>
+        <fields>["Title","App_Name","Version","Disabled","Status","Comment","Link"]</fields>
+        <drilldown>
+          <link target="_blank">$row.Url%7Cn$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>App dependencies</title>
+      <table>
+        <title>Make sure you have the Common Information Model app and at least one of the "Content" apps installed</title>
+        <search>
+          <query>| makeresults count=5 
+| streamstats count as App_Num 
+| eval App_Name = 
+    case(
+    App_Num="1", "Splunk_SA_CIM",
+    App_Num="2", "DA-ESS-ContentUpdate",
+    App_Num="3", "Splunk_Security_Essentials",
+    App_Num="4", "SplunkEnterpriseSecuritySuite", 
+    App_Num="5", "sankey_diagram_app"
+    ) 
+| join type=outer App_Name 
+    [| rest /services/apps/local 
+    | table title *ersion* *nabled* *isabled* label update.homepage details
+    | eval Status="Good" 
+    | rename title as App_Name, label AS Title,details AS Url] 
+| rex field=version "^(?&lt;majorminor&gt;\d*\.\d*)"
+| eval Comment=case(
+App_Name="Splunk_SA_CIM" AND (disabled=1 OR isnull(disabled)), "App needs to be installed and enabled.",
+App_Name="DA-ESS-ContentUpdate" AND (disabled=1 OR isnull(disabled)), "This app contains a lot of the content so it is recommended to have this installed.",
+App_Name="Splunk_Security_Essentials" AND (disabled=1 OR isnull(disabled)), "This app contains a lot of the content so it is recommended to have this installed.",
+App_Name="SplunkEnterpriseSecuritySuite" AND (disabled=1 OR isnull(disabled)), "This app contains a lot of the content so it is recommended to have this installed.",
+App_Name="sankey_diagram_app" AND (disabled=1 OR isnull(disabled)), "Without this app you will miss out on the Sankey vizualisation.",
+1=1,""
+)
+| eval Status=if(len(Comment)&gt;0,"Bad",Status)
+| rename version as Version, disabled AS Disabled
+| eval Link="Click here"
+| table Title App_Name Version Disabled Status Comment Link Url</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">cell</option>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"Good":#53A051,"Bad":#DC4E41}</colorPalette>
+        </format>
+        <format type="color" field="Disabled">
+          <colorPalette type="map">{"0":#53A051,"1":#DC4E41}</colorPalette>
+        </format>
+        <fields>["Title","App_Name","Version","Disabled","Status","Comment","Link"]</fields>
+        <drilldown>
+          <link target="_blank">$row.Url%7Cn$</link>
+        </drilldown>
+      </table>
+    </panel>
   </row>
 </dashboard>
