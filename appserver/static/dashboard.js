@@ -18,13 +18,13 @@ require([
 
 			var newYes = '<span class="green">Yes</span>'
 			var newNo = '<span class="red">No</span>'
-			var newZero = '<span class="red">0</span>'
+			var newZero = ' <span class="red">0</span>'
 			var newText=""
 			$.each( details, function( i, val ) {
 				newText=val;
 				newText = newText.replace(RegExp("Yes", "gi"), newYes);
 				newText = newText.replace(RegExp("No", "gi"), newNo);
-				newText = newText.replace(RegExp("0", "gi"), newZero);
+				newText = newText.replace(RegExp(" 0", "gi"), newZero);
 				details[i]=newText+'<br />';
 
 			});

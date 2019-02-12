@@ -34,6 +34,125 @@ splunkd,"Splunk_SA_CIM",installed,0
 bluecoat,"Splunk_TA_bluecoat-proxysg",installed,0
 "bluecoat:proxysg:access:file","Splunk_TA_bluecoat-proxysg",installed,0
 "bluecoat:proxysg:access:syslog","Splunk_TA_bluecoat-proxysg",installed,0
+ActiveDirectory,"Splunk_TA_windows",installed,0
+DhcpSrvLog,"Splunk_TA_windows",installed,0
+"Perfmon:CPU","Splunk_TA_windows",installed,0
+"Perfmon:CPUTime","Splunk_TA_windows",installed,0
+"Perfmon:FreeDiskSpace","Splunk_TA_windows",installed,0
+"Perfmon:LocalNetwork","Splunk_TA_windows",installed,0
+"Perfmon:LogicalDisk","Splunk_TA_windows",installed,0
+"Perfmon:Memory","Splunk_TA_windows",installed,0
+"Perfmon:Network","Splunk_TA_windows",installed,0
+"Perfmon:PhysicalDisk","Splunk_TA_windows",installed,0
+"Perfmon:Process","Splunk_TA_windows",installed,0
+"Perfmon:ProcessorInformation","Splunk_TA_windows",installed,0
+"Perfmon:System","Splunk_TA_windows",installed,0
+"PerfmonMk:CPU","Splunk_TA_windows",installed,0
+"PerfmonMk:LogicalDisk","Splunk_TA_windows",installed,0
+"PerfmonMk:Memory","Splunk_TA_windows",installed,0
+"PerfmonMk:Network","Splunk_TA_windows",installed,0
+"PerfmonMk:PhysicalDisk","Splunk_TA_windows",installed,0
+"PerfmonMk:Process","Splunk_TA_windows",installed,0
+"PerfmonMk:ProcessorInformation","Splunk_TA_windows",installed,0
+"PerfmonMk:System","Splunk_TA_windows",installed,0
+"Script:InstalledApps","Splunk_TA_windows",installed,0
+"Script:ListeningPorts","Splunk_TA_windows",installed,0
+"Script:NetworkConfiguration","Splunk_TA_windows",installed,0
+"Script:TimesyncConfiguration","Splunk_TA_windows",installed,0
+"Script:TimesyncStatus","Splunk_TA_windows",installed,0
+"WMI:CPUTime","Splunk_TA_windows",installed,0
+"WMI:ComputerSystem","Splunk_TA_windows",installed,0
+"WMI:FreeDiskSpace","Splunk_TA_windows",installed,0
+"WMI:InstalledUpdates","Splunk_TA_windows",installed,0
+"WMI:LocalNetwork","Splunk_TA_windows",installed,0
+"WMI:LocalPhysicalDisk","Splunk_TA_windows",installed,0
+"WMI:LocalProcesses","Splunk_TA_windows",installed,0
+"WMI:LogicalDisk","Splunk_TA_windows",installed,0
+"WMI:Memory","Splunk_TA_windows",installed,0
+"WMI:ScheduledJobs","Splunk_TA_windows",installed,0
+"WMI:Service","Splunk_TA_windows",installed,0
+"WMI:Uptime","Splunk_TA_windows",installed,0
+"WMI:UserAccounts","Splunk_TA_windows",installed,0
+"WMI:Version","Splunk_TA_windows",installed,0
+"WMI:WinEventLog:Application","Splunk_TA_windows",installed,0
+"WMI:WinEventLog:Security","Splunk_TA_windows",installed,0
+"WMI:WinEventLog:System","Splunk_TA_windows",installed,0
+WinEventLog,"Splunk_TA_windows",installed,0
+"WinEventLog:Application","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-AppLocker/EXE and DLL","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-AppLocker/MSI and Script","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-AppLocker/Packaged app-Deployment","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-AppLocker/Packaged app-Execution","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-Application-Experience/Program-Inventory","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-CAPI2/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-CodeIntegrity/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-DNS-Client/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-Defender/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-DriverFrameworks-UserMode/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-Kernel-PnP/Device Configuration","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-LSA/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-NetworkProfile/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-PowerShell/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-PrintService/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-SMBClient/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-SmartCard-Audit/Authentication","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-TaskScheduler/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-TerminalServices-LocalSessionManager/Admin","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-TerminalServices-LocalSessionManager/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-TerminalServices-RDPClient/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-WLAN-Autoconfig/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-WinRM/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-Windows Defender/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-Windows Firewall With Advanced Security/Firewall","Splunk_TA_windows",installed,0
+"WinEventLog:Microsoft-Windows-WindowsUpdateClient/Operational","Splunk_TA_windows",installed,0
+"WinEventLog:Security","Splunk_TA_windows",installed,0
+"WinEventLog:Setup","Splunk_TA_windows",installed,0
+"WinEventLog:System","Splunk_TA_windows",installed,0
+"WinEventLog:System:IAS","Splunk_TA_windows",installed,0
+"WinEventLog:Windows PowerShell","Splunk_TA_windows",installed,0
+WinHostMon,"Splunk_TA_windows",installed,0
+WinRegistry,"Splunk_TA_windows",installed,0
+WindowsUpdateLog,"Splunk_TA_windows",installed,0
+XmlWinEventLog,"Splunk_TA_windows",installed,0
+"XmlWinEventLog:Application","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-AppLocker/EXE and DLL","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-AppLocker/MSI and Script","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-AppLocker/Packaged app-Deployment","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-AppLocker/Packaged app-Execution","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-Application-Experience/Program-Inventory","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-CAPI2/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-CodeIntegrity/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-DNS-Client/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-Defender/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-DriverFrameworks-UserMode/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-Kernel-PnP/Device Configuration","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-LSA/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-NetworkProfile/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-PowerShell/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-PrintService/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-SMBClient/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-SmartCard-Audit/Authentication","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-TaskScheduler/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-TerminalServices-LocalSessionManager/Admin","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-TerminalServices-LocalSessionManager/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-TerminalServices-RDPClient/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-TerminalServices-RemoteConnectionManager/Admin","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-WLAN-Autoconfig/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-WinRM/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-Windows Defender/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-Windows Firewall With Advanced Security/Firewall","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Microsoft-Windows-WindowsUpdateClient/Operational","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Security","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Setup","Splunk_TA_windows",installed,0
+"XmlWinEventLog:System","Splunk_TA_windows",installed,0
+"XmlWinEventLog:Windows PowerShell","Splunk_TA_windows",installed,0
+"fs_notification","Splunk_TA_windows",installed,0
+wineventlog,"Splunk_TA_windows",installed,0
+wmi,"Splunk_TA_windows",installed,0
+xmlwineventlog,"Splunk_TA_windows",installed,0
 "qualys://knowledge_base","TA-QualysCloudPlatform",installed,0
 "qualys:hostDetection","TA-QualysCloudPlatform",installed,0
 "qualys:pc:policyInfo","TA-QualysCloudPlatform",installed,0
@@ -121,7 +240,14 @@ testport,"TA-webtools",installed,0
 "python_modular_input.log-52",learned,installed,0
 "python_modular_input.log-53",learned,installed,0
 "python_modular_input.log-54",learned,installed,0
+"python_modular_input.log-55",learned,installed,0
+"python_modular_input.log-56",learned,installed,0
+"python_modular_input.log-57",learned,installed,0
+"python_modular_input.log-58",learned,installed,0
+"python_modular_input.log-59",learned,installed,0
 "python_modular_input.log-6",learned,installed,0
+"python_modular_input.log-60",learned,installed,0
+"python_modular_input.log-61",learned,installed,0
 "python_modular_input.log-7",learned,installed,0
 "python_modular_input.log-8",learned,installed,0
 "python_modular_input.log-9",learned,installed,0
@@ -156,11 +282,9 @@ mongod,"splunk_monitoring_console",installed,0
 "splunkd_access","splunk_monitoring_console",installed,0
 "splunkd_conf","splunk_monitoring_console",installed,0
 "splunkd_remote_searches","splunk_monitoring_console",installed,0
-ActiveDirectory,system,installed,0
 PerformanceMonitor,system,installed,0
 WinNetMonMk,system,installed,0
-WinPrintMon,system,installed,0
-WinRegistry,system,installed,0
+WinPrintMon,"Splunk_TA_windows",installed,0
 WinWinHostMon,system,installed,0
 "__singleline",system,installed,0
 "_json",system,installed,0
@@ -193,7 +317,6 @@ exchange,system,installed,0
 "exim_main",system,installed,0
 "exim_reject",system,installed,0
 fileTrackerCrcLog,system,installed,0
-"fs_notification",system,installed,0
 ftp,system,installed,0
 "generic_single_line",system,installed,0
 "ignored_type",system,installed,0
@@ -272,5 +395,4 @@ web,system,installed,0
 "websphere_core",system,installed,0
 "websphere_trlog",system,installed,0
 "windows_snare_syslog",system,installed,0
-wmi,system,installed,0
 wtmp,system,installed,0

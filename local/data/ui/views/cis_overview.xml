@@ -344,7 +344,7 @@ $replacewithsample$
           <eval token="form.AddOn">if($form.x_field$="AddOn", $click.value$,"*")</eval>
           <eval token="form.App">if($form.x_field$="App", $click.value$,"*")</eval>
           <eval token="form.kill_chain_phase">if($form.x_field$="Kill Chain Phase", $click.value$,"*")</eval>
-          <eval token="form.CIS">if($form.x_field$="CIS", $click.value$,"*")</eval>
+          <eval token="form.CIS">if($form.x_field$="CIS", replace($click.value$, "0",""),"*")</eval>
         </drilldown>
       </chart>
     </panel>

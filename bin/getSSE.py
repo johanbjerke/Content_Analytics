@@ -57,7 +57,8 @@ def execute():
         splunk.Intersplunk.outputResults(results)
 
     except Exception, e:
-        stack =  traceback.format_exc()
+        #stack =  traceback.format_exc()
+        stack = "No error message returned"
         splunk.Intersplunk.generateErrorResults(str(e))
         logger.error(str(e) + ". Traceback: " + str(stack))
 

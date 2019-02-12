@@ -1,8 +1,6 @@
 <nav search_view="search" color="#65A637">
-
- 
   <collection label="Security Content">
-    <view name="data_source_overview"/>
+    <view name="security_content_overview"/>
   <view name="mitre_overview"/>
   <view name="kill_chain_overview"/>
 <view name="nist_overview"/>
@@ -16,10 +14,4 @@
   <view name="alerts" />
   <view name="dashboards" />
   </collection>
-  
-  <collection label="Others">    
-      <view name="hosts_coverage"/>
-  <view name="sourcetypes"/>
-	<view source="unclassified" />  
-	</collection>
 </nav>
