@@ -16,5 +16,3 @@ wineventlog:security,WinEventLog
 wineventlog:security,XmlWinEventLog
 wineventlog:system,WinEventLog
 winhostmon,winhostmon
-WMI:WinEventLog:Security,WMI:WinEventLog:Security
-XmlWinEventLog:Security,XmlWinEventLog:Security

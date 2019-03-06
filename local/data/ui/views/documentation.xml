@@ -17,70 +17,65 @@
   </row>
   <row>
     <panel>
-      <title>1. App dependencies</title>
+      <title>Step 1 - App dependencies</title>
       <table>
         <title>Make sure you have the Common Information Model app and at least one of the "Content" apps installed</title>
         <search>
-          <query>| makeresults count=5 
-| streamstats count as App_Num 
-| eval App_Name = 
-    case(
-    App_Num="1", "Splunk_SA_CIM",
-    App_Num="2", "DA-ESS-ContentUpdate",
-    App_Num="3", "Splunk_Security_Essentials",
-    App_Num="4", "SplunkEnterpriseSecuritySuite", 
-    App_Num="5", "sankey_diagram_app"
-    ) 
-| join type=outer App_Name 
+          <query>| inputlookup AppDependencies
+| join type=outer App 
     [| rest /services/apps/local 
     | table title *ersion* *nabled* *isabled* label update.homepage details
     | eval Status="Good" 
-    | rename title as App_Name, label AS Title,details AS Url] 
+    | rename title as App] 
 | rex field=version "^(?&lt;majorminor&gt;\d*\.\d*)"
 | eval Comment=case(
-App_Name="Splunk_SA_CIM" AND (disabled=1 OR isnull(disabled)), "App needs to be installed and enabled.",
-App_Name="DA-ESS-ContentUpdate" AND (disabled=1 OR isnull(disabled)), "This app contains a lot of the content so it is recommended to have this installed.",
-App_Name="Splunk_Security_Essentials" AND (disabled=1 OR isnull(disabled)), "This app contains a lot of the content so it is recommended to have this installed.",
-App_Name="SplunkEnterpriseSecuritySuite" AND (disabled=1 OR isnull(disabled)), "This app contains a lot of the content so it is recommended to have this installed.",
-App_Name="sankey_diagram_app" AND (disabled=1 OR isnull(disabled)), "Without this app you will miss out on the Sankey vizualisation.",
+(disabled=1 OR isnull(disabled)), Comment,
 1=1,""
 )
-| eval Status=if(len(Comment)&gt;0,"Bad",Status)
-| rename version as Version, disabled AS Disabled
+| eval Status=case(
+len(Comment)&gt;0 AND Dependency="Required","Required",
+len(Comment)&gt;0 AND Dependency="Nice to have","Recommended",
+1=1,Status)
+| rename version as Version, disabled AS Disabled, "update.version" AS "Latest Version"
 | eval "Splunkbase Link"="Click here"
-| table Title App_Name Version Disabled Status Comment "Splunkbase Link" Url</query>
+| table Title App_Name Version "Latest Version" Disabled Status Comment "Splunkbase Link" Url</query>
           <earliest>-24h@h</earliest>
           <latest>now</latest>
         </search>
         <option name="drilldown">cell</option>
         <option name="refresh.display">progressbar</option>
         <format type="color" field="Status">
-          <colorPalette type="map">{"Good":#53A051,"Bad":#DC4E41}</colorPalette>
+          <colorPalette type="map">{"Good":#53A051,"Required":#DC4E41,"Recommended":#F8BE34}</colorPalette>
         </format>
         <format type="color" field="Disabled">
           <colorPalette type="map">{"0":#53A051,"1":#DC4E41}</colorPalette>
         </format>
-        <fields>["Title","App_Name","Version","Disabled","Status","Comment","Splunkbase Link"]</fields>
+        <fields>["Title","App_Name","Version","Latest Version","Disabled","Status","Comment","Splunkbase Link"]</fields>
         <drilldown>
           <link target="_blank">$row.Url%7Cn$</link>
         </drilldown>
       </table>
     </panel>
     <panel>
-      <title>2. Lookup dependencies</title>
+      <title>Step 2 - Lookup dependencies</title>
       <table>
         <title>Make sure both of these lookups contain data. Click the link in the table to generate them after initial install. These lookups are refreshed every 24 hours.</title>
         <search>
-          <query>| inputlookup Datamodel_Event_Summary.csv 
-| eval Lookup="Datamodel_Event_Summary.csv" 
-| stats count AS Rows by Lookup
-| eval Url="Splunk_Content_Analytics/search?q=%7C%20savedsearch%20nosubstitution%3Dt%20\"Generate%20Datamodel%20Event%20Summary%20-%20Scheduled\""
-| append [
-| inputlookup Installed_sourcetypes.csv
-| eval Lookup="Installed_sourcetypes.csv" 
-| stats count AS Rows by Lookup
-| eval Url="Splunk_Content_Analytics/search?q=%7C%20savedsearch%20\"Generate%20Sourcetype%20Summary%20-%20Scheduled\""
+          <query>| makeresults count=2
+| streamstats count
+| eval Lookup=if(count=1,"Datamodel_Event_Summary.csv","Installed_sourcetypes.csv")
+| eval Url=if(count=1,"Splunk_Content_Analytics/search?q=%7C%20savedsearch%20nosubstitution%3Dt%20\"Generate%20Datamodel%20Event%20Summary%20-%20Scheduled\"","Splunk_Content_Analytics/search?q=%7C%20savedsearch%20\"Generate%20Sourcetype%20Summary%20-%20Scheduled\"")
+| join type=outer count [
+| inputlookup Datamodel_Event_Summary.csv
+| stats count AS Rows
+| eval count=1
 ]
+| join type=outer count [
+| inputlookup Installed_sourcetypes.csv
+| stats count AS Rows
+| eval count=2
+]
+| eval Rows=coalesce(Rows,0)
 | eval Link="Click to generate lookup"
 | eval Status=if(Rows=0 OR isnull(Rows),"Bad","Good")
 | table Lookup Rows Status Link Url</query>
@@ -174,9 +169,9 @@ The high level process is visualised in the Sankey below:
       </viz>
     </panel>
   </row>
-    <row>
+  <row>
     <panel>
-        <html>
+      <html>
             <h1>App artefacts</h1>
 
             <p>The app contains the following artefacts worth noting:</p>

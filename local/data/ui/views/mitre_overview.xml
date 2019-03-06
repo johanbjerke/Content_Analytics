@@ -21,17 +21,37 @@
       </condition>
     </done>
   </search>
+    <search>
+    <query>| rest splunk_server=local /services/apps/local | search disabled=0 title=*radar*</query>
+    <done>
+      <condition match="'job.resultCount' == 0">
+        <set token="noradar">noradar</set>
+        <unset token="radar">radar</unset>
+      </condition>
+      <condition match="'job.resultCount' &gt; 0">
+        <unset token="noradar">noradar</unset>
+        <set token="radar">radar</set>
+      </condition>
+    </done>
+  </search>
   <search id="usecase_base">
     <query>
 | rest splunk_server=local count=0 /services/saved/searches search=action.correlationsearch.enabled
-| rename eai:acl.app as app, title as csearch_name, action.correlationsearch.label as csearch_label, action.notable.param.security_domain as security_domain, action.escu.providing_technologies AS providing_technologies
+| rename eai:acl.app as app, title as csearch_name, action.correlationsearch.label as csearch_label, action.notable.param.security_domain as security_domain, action.escu.providing_technologies AS providing_technologies, action.escu.analytic_story AS analytic_story
 | append [ `getsse` ]
 | rex field=qualifiedSearch ".*datamodel(=\"|:\"|\(\"|\s|:|=)(\"|)(?&lt;datamodel&gt;[a-z,A-Z,_]*)"
 | lookup Datamodel_Event_Summary.csv datamodel
 | eval csearch_label=coalesce(csearch_label,csearch_name)
 | fillnull EventCount Hosts
-| fields action.escu.mappings csearch_label description qualifiedSearch datamodel EventCount Hosts disabled app displayapp security_domain providing_technologies usecase hasSearch includeSSE datasource displayapp app journey category domain icon description dashboard mitre killchain alertvolume bookmark_status
+| fields action.escu.mappings analytic_story csearch_label description qualifiedSearch datamodel EventCount Hosts disabled app displayapp security_domain providing_technologies usecase hasSearch includeSSE datasource displayapp app journey category domain icon description dashboard mitre killchain alertvolume bookmark_status
 | where len(description)&gt;0
+
+| spath input="analytic_story" path="{}" output="analytic_story"
+| eval deeplink=case(
+isnotnull(analytic_story),"DA-ESS-ContentUpdate/analytic_story_details?form.analytic_story_name=".replace(mvindex(analytic_story,0), "\s", "%20"),
+isnotnull(dashboard),"Splunk_Security_Essentials/".replace(dashboard, "\s", "%20"),
+1=1,"SplunkEnterpriseSecuritySuite/ess_content_management?textFilter=".replace(csearch_label, "\s", "%20")
+)
 
 | spath input="action.escu.mappings" path=cis20{} output="CIS"
 | spath input="action.escu.mappings" path=mitre_attack{} output="MITRE"
@@ -66,7 +86,7 @@
 
 | rename csearch_label AS "Title", description AS Description, qualifiedSearch as "Detection Search", datamodel AS Datamodel, EventCount AS Events, providing_technologies AS "Providing Technologies"
 | eval Enabled=if(disabled=1, "No", "Yes")
-| eval App=case(app="DA-ESS-ContentUpdate", "ES Content Updates", like(app,"SA-%") OR like(app,"DA-%"), "Enterprise Security", like(Description,"%Security Essentials%"), "Splunk Security Essentials",isnotnull(displayapp),displayapp,1=1, app)
+| eval App=case(app="DA-ESS-ContentUpdate", "ES Content Updates", like(app,"SplunkEnterpriseSecuritySuite") OR  like(app,"SA-%") OR like(app,"DA-%"), "Enterprise Security", like(Description,"%Security Essentials%"), "Splunk Security Essentials",isnotnull(displayapp),displayapp,1=1, app)
 | join type=outer Datamodel 
     [| rest splunk_server=local count=0 /servicesNS/-/-/admin/datamodel-files 
     | spath input=eai:data output=base_search path=objects{}.baseSearch 
@@ -89,6 +109,9 @@
         | eval app_sourcetype=mvzip(app,sourcetype,"__") 
         | fields sourcetype tag_name app_sourcetype app 
         | stats values(tag_name) as tag_name by app, sourcetype,app_sourcetype
+        | eval c="Manually exclude perfmon and certain WMI as it is mostly not valuable for security and it clogs up the stats"
+        | fields - c
+        | where NOT (like(lower(sourcetype),"%perfmon%") OR ( like(lower(sourcetype),"wmi:%") AND NOT like(lower(sourcetype),"wmi:wineventlog:security") ) )
             ] 
     $addsample$
     | stats first(Hosts) AS Hosts,sum(EventCount) AS "EventCount",first(totalCount) AS totalCount,list(datamodel) as datamodel, list(app) as app, list(app_sourcetype) as app_sourcetype by tag_name 
@@ -111,7 +134,8 @@ $replacewithsample$
 
 | eval Datamodel=coalesce(Datamodel,"-"),"MITRE Tactic"=coalesce('MITRE Tactic',"-"),"MITRE Technique"=coalesce('MITRE Technique',"-")
 | eval AddOn=coalesce(split(replace(AddOn,"\n","---"),"---"),AddOn,"-"),Sourcetype=coalesce(split(replace(Sourcetype,"\n","---"),"---"),Sourcetype,"-"),sourcetype_origin=coalesce(split(replace(sourcetype_origin,"\n","---"),"---"),sourcetype_origin,"-")
-| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
+| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h host_count_24h
+| rename sourcetype_count_24h AS "EventCount (Sourcetype)",host_count_24h AS "HostCount (Sourcetype)"
 | eval Accelerated=if(Acceleration&gt;0, "Yes","No")
 | eval "Enabled and Accelerated"=if(Acceleration&gt;0 AND Enabled="Yes", "Yes","No")
 | eval "Has Data (DM)"=if(EventCount&gt;0, "Yes", "No")
@@ -121,7 +145,7 @@ $replacewithsample$
 ('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"Phase 1 - Potential",
 1=1,"Phase 2 - Needs more data"
 )
-| rename EventCount AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
+
 | eval "Detection Type"=if(Datamodel!="-", "Datamodel", "Index")
 | eventstats dc(eval(if(Sourcetype="-",null,Sourcetype))) AS "Sourcetypes Installed Count",dc(eval(if(AddOn="-",null,AddOn))) AS "AddOns Installed Count" BY "Title"
 | eval Details="Detection Enabled: ".Enabled
@@ -130,8 +154,10 @@ $replacewithsample$
 | eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Datamodel has data (-24h): ".'Has Data (DM)'),Details)
 | eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Hosts with data (-24h): ".'Hosts'),Details)
 | eval Details=if('Detection Type'="Index",mvappend(Details, "Indexed data exists (-24h): ".'Has Data (Index)'),Details)
+| eval Details=if('Detection Type'="Index",mvappend(Details, "Hosts with data (-24h): ".'HostCount (Sourcetype)'),Details)
 | eval Details=mvappend(Details, "Sourcetypes Installed: ".'Sourcetypes Installed Count')
 | eval Details=mvappend(Details, "Add-Ons Installed: ".'AddOns Installed Count')
+| eval Hosts=if('Detection Type'="Index",'HostCount (Sourcetype)',Hosts)
 
 </query>
   </search>
@@ -237,10 +263,13 @@ BY "MITRE Tactic","MITRE Technique"
       <h1>Content Overview - Click to filter</h1>
       <ul id="tabs" class="nav nav-tabs">
                     <li class="active">
-                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row1_col1" data-token="row1_col1">Chart View</a>
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row1_col1,row4_col1" data-token="row1_col1">Chart View</a>
                     </li>
                     <li>
-                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row2_col1" data-token="row2_col1">Sankey View</a>
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row2_col1,row4_col1" data-token="row2_col1">Radar View</a>
+                    </li>
+                    <li>
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row3_col1,row4_col1" data-token="row3_col1">Sankey View</a>
                     </li>
 				</ul>
 				
@@ -350,6 +379,9 @@ BY "MITRE Tactic","MITRE Technique"
         <search base="usecase_base">
           <query>
             | eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+               | foreach Enabled Hosts Sourcetype AddOn Datamodel Status "Use Case Orig" [
+             | eval "&lt;&lt;FIELD&gt;&gt;"=coalesce('&lt;&lt;FIELD&gt;&gt;',"-")
+            ]
             | search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
 | chart count over "$x_field$" By "$y_field$"
 | eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
@@ -362,7 +394,7 @@ BY "MITRE Tactic","MITRE Technique"
         <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
         <option name="charting.axisLabelsX.majorLabelStyle.rotation">-45</option>
         <option name="charting.axisLabelsY.majorUnit">1</option>
-        <option name="charting.axisTitleY.text">Use Cases</option>
+        <option name="charting.axisTitleY.text">Content</option>
         <option name="charting.axisTitleY.visibility">visible</option>
         <option name="charting.axisY.abbreviation">none</option>
         <option name="charting.chart">column</option>
@@ -389,7 +421,93 @@ BY "MITRE Tactic","MITRE Technique"
       </chart>
     </panel>
   </row>
-  <row id="row2_col1">
+    <row id="row2_col1">
+    <panel depends="$radar$">
+      <input type="dropdown" token="phase">
+        <label>Phase</label>
+        <choice value="*">Any</choice>
+        <choice value="Current">Current</choice>
+        <choice value="Phase 1 - Potential">Phase 1</choice>
+        <choice value="Phase 2 - Needs more data">Phase 2</choice>
+        <default>*</default>
+      </input>
+      <input type="dropdown" token="sourcetype_origin">
+        <label>Sourcetypes</label>
+        <choice value="installed">Installed Sourcetypes</choice>
+        <choice value="sample">Sample Sourcetypes</choice>
+        <choice value="*">All Sourcetypes</choice>
+        <default>installed</default>
+        <initialValue>installed</initialValue>
+        <change>
+          <condition label="Sample Sourcetypes">
+            <set token="addsample">| append [
+        | inputlookup Sample_sourcetypes.csv
+        | eval tag_name=split(tag_name,",")
+        | fields Sourcetype tag_name app_sourcetype app
+        | stats values(tag_name) as tag_name by app, Sourcetype,app_sourcetype
+        | rename Sourcetype AS sourcetype
+            ]</set>
+            <set token="replacewithsample">| eval sourcetype_origin=sourcetype_origin_sample
+              | eval AddOn=AddOn_sample</set>
+          </condition>
+          <condition label="*">
+            <set token="addsample"></set>
+            <set token="replacewithsample"></set>
+          </condition>
+        </change>
+      </input>
+      <viz type="custom-radar-chart-viz.radar_chart">
+        <title>(Requires Radar Viz)</title>
+        <search base="usecase_base">
+          <query>| eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+| search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
+| chart count over "$x_field$" By Status
+
+| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
+| fields - m
+| eval "Phase 2 - Needs more data"=if(Selected_New=0 AND Selected&gt;0, 'Phase 2 - Needs more data'+Selected, 'Phase 2 - Needs more data')
+| rename Selected_New AS Selected
+
+$chart_post_process$
+| untable "$x_field$" key value
+| rename  "$x_field$" AS axis
+| eval keyColor=case(
+key="Current","#638771",
+key="Phase 1 - Potential","#A0BBAA",
+key="Phase 2 - Needs more data","#E0E9E3",
+key="Selected","#EC9960"
+)</query>
+        </search>
+        <option name="custom-radar-chart-viz.radar_chart.areasOpacity">0.35</option>
+        <option name="custom-radar-chart-viz.radar_chart.axesLabelFontColor">#737373</option>
+        <option name="custom-radar-chart-viz.radar_chart.axesLegendFontColor">#000000</option>
+        <option name="custom-radar-chart-viz.radar_chart.axesLineColor">#FFFFFF</option>
+        <option name="custom-radar-chart-viz.radar_chart.chartHeight">500</option>
+        <option name="custom-radar-chart-viz.radar_chart.chartWidth">500</option>
+        <option name="custom-radar-chart-viz.radar_chart.circlesColor">#CDCDCD</option>
+        <option name="custom-radar-chart-viz.radar_chart.circlesFillColor">#ffffff</option>
+        <option name="custom-radar-chart-viz.radar_chart.circlesOpacity">0.1</option>
+        <option name="custom-radar-chart-viz.radar_chart.fullScreen">0</option>
+        <option name="custom-radar-chart-viz.radar_chart.isRounded">0</option>
+        <option name="custom-radar-chart-viz.radar_chart.legendEnabled">1</option>
+        <option name="custom-radar-chart-viz.radar_chart.legendFontColor">#000000</option>
+        <option name="custom-radar-chart-viz.radar_chart.legendPositionX">25</option>
+        <option name="custom-radar-chart-viz.radar_chart.legendPositionY">25</option>
+        <option name="custom-radar-chart-viz.radar_chart.legendSymbol">cross</option>
+        <option name="custom-radar-chart-viz.radar_chart.legendToggleSymbol">circle</option>
+        <option name="custom-radar-chart-viz.radar_chart.levels">10</option>
+        <option name="custom-radar-chart-viz.radar_chart.maxValue">70</option>
+        <option name="drilldown">none</option>
+        <option name="height">466</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="trellis.enabled">0</option>
+        <option name="trellis.scales.shared">1</option>
+        <option name="trellis.size">medium</option>
+      </viz>
+    </panel>
+  </row>
+  <row id="row3_col1">
     <panel depends="$sankey$">
       <title>Content from Add-On &gt; Data Model &gt; Sourcetype &gt; $y_field$</title>
       <input type="dropdown" token="phase">
@@ -547,25 +665,51 @@ BY "MITRE Tactic","MITRE Technique"
         </change>
       </input>
       <input type="checkbox" token="show_search">
-        <label>Search</label>
+        <label>Search Query</label>
         <choice value="&quot;Detection Search&quot;">Show</choice>
         <change>
           <eval token="show_search_table">if(isnull($form.show_search$) OR $form.show_search$="", " ",$form.show_search$)</eval>
         </change>
       </input>
+                        <input type="text" token="searchfilter">
+        <label>Search Filter</label>
+                            <default> </default>
+      </input>
+    </panel>
+  </row>
+  <row id="tabs_content_table">
+    <panel>
+      <html>
+      <h1>Content Overview - Click to filter</h1>
+      <ul id="tabs" class="nav nav-tabs">
+                    <li class="active">
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row4_col1,row1_col1" data-token="row4_col1">Content View</a>
+                    </li>
+                    <li>
+                        <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row5_col1,row1_col1" data-token="row5_col1">Sourcetype View</a>
+                    </li>
+				</ul>
+
+
+    </html>
+    </panel>
+  </row>
+      <row id="row4_col1">
+        <panel>
       <table id="content_table">
         <search base="usecase_base">
           <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
             | search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "MITRE Tactic"="$MITRE_Tactic$" "MITRE Technique"="$MITRE_Technique$"
-| eval sourcetypes_selected=mvfilter($sourcetype$)
-| eval Sourcetype=coalesce(sourcetypes_selected,Sourcetype)
-| fields -  Tags
-| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
-| rename Events AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
-| table Status "Title", Description, Details,$show_search_table$,"MITRE Tactic","MITRE Technique",App,Datamodel, $show_sourcetype_table$</query>
+            | where like(lower(Title),"%".lower("$searchfilter$")."%") OR like(lower(Description),"%".lower("$searchfilter$")."%") OR like(lower('Detection Search'),"%".lower("$searchfilter$")."%")
+            | eval sourcetypes_selected=mvfilter($sourcetype$)
+            | eval Sourcetype=coalesce(sourcetypes_selected,Sourcetype)
+            | fields -  Tags
+            | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h
+            | rename Events AS "Events (DM)", sourcetype_count_24h AS "Events (Sourcetype)"
+            | table Status "Title", Description, Details,$show_search_table$,"MITRE Tactic","MITRE Technique",App,Datamodel, $show_sourcetype_table$,deeplink</query>
         </search>
         <option name="count">5</option>
-        <option name="drilldown">none</option>
+        <option name="drilldown">cell</option>
         <option name="refresh.display">progressbar</option>
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>
@@ -589,6 +733,73 @@ BY "MITRE Tactic","MITRE Technique"
         <format type="color" field="Accelerated">
           <colorPalette type="map">{"Yes":#638771,"No":#E0E9E3}</colorPalette>
         </format>
+           <drilldown>
+          <link target="_blank">
+            <![CDATA[
+        /app/$row.deeplink|n$
+         ]]>
+          </link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+    <row id="row5_col1">
+    <panel>
+      <table id="sourcetype_table">
+        <search base="usecase_base">
+          <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+| search Enabled="$corr_enabled$" Hosts$corr_data$ AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "MITRE Tactic"="$MITRE_Tactic$" "MITRE Technique"="$MITRE_Technique$"
+| mvexpand Sourcetype
+| where Sourcetype!="-"
+| stats
+sum(eval(if(Status="Current",1,0))) AS Current,
+sum(eval(if(Status="Phase 1 - Potential",1,0))) AS "Phase 1 - Potential",
+sum(eval(if(Status="Phase 2 - Needs more data",1,0))) AS "Phase 2 - Needs more data",
+sum(eval(if(Status="Selected",1,0))) AS "Selected"
+BY Sourcetype
+
+| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
+| fields - m
+| eval "Phase 2 - Needs more data"=if(Selected_New=0 AND Selected&gt;0, 'Phase 2 - Needs more data'+Selected, 'Phase 2 - Needs more data')
+| rename Selected_New AS Selected
+
+| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h AS "Events (-24h)", host_count_24h AS "Hosts (-24h)", app AS "Add-On"
+| lookup SourcetypeNormalisation Sourcetype OUTPUT Normalised
+| eval Sourcetype=mvdedup(coalesce(Normalised,Sourcetype))
+| eval Total='Current'+'Phase 1 - Potential'+'Phase 2 - Needs more data'+'Selected'
+| sort - Total
+| table "Sourcetype" Total "Current" "Phase 1 - Potential" "Phase 2 - Needs more data" Selected "Add-On" "Events (-24h)" "Hosts (-24h)"</query>
+        </search>
+        <option name="count">10</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">true</option>
+        <option name="totalsRow">true</option>
+        <format type="color" field="Total">
+          <colorPalette type="minMidMax" maxColor="#638771" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="Current">
+          <colorPalette type="list">[#638771]</colorPalette>
+          <scale type="threshold"></scale>
+        </format>
+        <format type="color" field="Phase 1 - Potential">
+          <colorPalette type="minMidMax" maxColor="#A0BBAA" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="Phase 2 - Needs more data">
+          <colorPalette type="minMidMax" maxColor="#E0E9E3" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <format type="color" field="Selected">
+          <colorPalette type="minMidMax" maxColor="#EC9960" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+        <drilldown>
+          <set token="form.sourcetype">$row.Sourcetype$</set>
+        </drilldown>
       </table>
     </panel>
   </row>
@@ -669,17 +880,6 @@ BY "MITRE Tactic","MITRE Technique"
           <scale type="minMidMax"></scale>
         </format>
       </table>
-    </panel>
-  </row>
-  <row>
-    <panel>
-      <html>
-          <a href="#" id="toggleinstructions" data-set-token="instructions" data-value="token_set">Toggle Instructions</a>
-           <div style="display:none;" id="instructions">
-              <h1>Instructions</h1>
-                <p>Yada yada yada</p>
-          </div>
-    </html>
     </panel>
   </row>
 </form>

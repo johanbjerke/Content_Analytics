@@ -1,4 +1,4 @@
-<nav search_view="search" color="#65A637">
+<nav search_view="search" color="#638771">
   <collection label="Security Content">
     <view name="security_content_overview"/>
   <view name="mitre_overview"/>

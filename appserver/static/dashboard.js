@@ -1,6 +1,6 @@
 console.log("I am loaded");
 /**
-	 * The below custom table rendered for the content table.
+	 * The below is a custom table renderer for the content table. It highlights colours inside the cells.
 	 */
 require([
     'underscore',
@@ -11,26 +11,38 @@ require([
 ], function(_, $, mvc, TableView) {
     var CustomIconRenderer = TableView.BaseCellRenderer.extend({
         canRender: function(cell) {
-            return cell.field === 'Details';
+            //return cell.field === 'Details' || cell.field === 'Description';
+			return cell.field === 'Details';
         },
         render: function($td, cell) {
-        	var details = cell.value;
+        	if (cell.field === 'Details') {
+        		var details = cell.value;
+        		var newYes = '<span class="green">Yes</span>'
+				var newNo = '<span class="red">No</span>'
+				var newZero = ' <span class="red">0</span>'
+				var newText=""
+				$.each( details, function( i, val ) {
+					newText=val;
+					newText = newText.replace(RegExp("Yes", "gi"), newYes);
+					newText = newText.replace(RegExp("No", "gi"), newNo);
+					newText = newText.replace(RegExp(" 0", "gi"), newZero);
+					details[i]=newText+'<br />';
 
-			var newYes = '<span class="green">Yes</span>'
-			var newNo = '<span class="red">No</span>'
-			var newZero = ' <span class="red">0</span>'
-			var newText=""
-			$.each( details, function( i, val ) {
-				newText=val;
-				newText = newText.replace(RegExp("Yes", "gi"), newYes);
-				newText = newText.replace(RegExp("No", "gi"), newNo);
-				newText = newText.replace(RegExp(" 0", "gi"), newZero);
-				details[i]=newText+'<br />';
+				});
 
-			});
-
-			//cell.value=details;
-			$td.html(details);
+				//cell.value=details;
+				$td.html(details);
+			} else if (cell.field === 'Description') {
+        		/*
+        		//This part it WIP
+        		var value = cell.value;
+        		var searchfilter = $("input[type='text']").val()
+        		console.log(searchfilter)
+				newText = value.replace(RegExp(searchfilter, "gi"), '<span class="red">'+searchfilter+'</span>');
+        		$td.html(newText);
+				console.log(newText)
+				*/
+			}
         }
     });
     mvc.Components.get('content_table').getVisualization(function(tableView){
@@ -60,7 +72,8 @@ require(["jquery",
         $("label:contains('Sourcetype filter')").prop('title', 'Filters to show only content that is mapped to the selected Sourcetypes.');
 		$("label:contains('Add-On')").prop('title', 'Filters the list to show only content that is mapped to the selected Add-On.');
         $("label:contains('Sourcetype and Add-On')").prop('title', 'Toggle to show the list of Sourcetypes and Add-Ons associated with the content.');
-		$("label:contains('Search')").prop('title', 'Toggle to show the actual SPL search for the content.');
+		$("label:contains('Search Query')").prop('title', 'Toggle to show the actual SPL search for the content.');
+		$("label:contains('Search Filter')").prop('title', 'The filter does a case insensitive text match. There are implied wildcards before and after the input string. You can also specify underscore ( _ ) characters for a single character match.');
 		$("label:contains('MITRE Tactic')").prop('title', 'MITRE Tactics represent the "why" of an ATT&CK technique. It is the adversary’s tactical objective: the reason for performing an action. See the MITRE reference link at the top of the page for more details.');
 		$("label:contains('MITRE Technique')").prop('title', 'MITRE Techniques represents “how” an adversary achieves a tactical objective by performing an action. See the MITRE reference link at the top of the page for more details.');
         $("label:contains('Kill Chain Phase')").prop('title', 'Each step in the Cyber Kill Chain defines the steps used by cyber attackers.  The theory is that by understanding each of these stages, defenders can better identify and stop attacks at each of the stages. See the Cyber Kill Chain reference link at the top of the page for more details.');
@@ -68,7 +81,6 @@ require(["jquery",
 		$("label:contains('CIS')").prop('title', 'The CIS Controls are a prioritized set of controls and actions to defend against pervasive cyber threats. See the CIS Controls reference link at the top of the page for more details.');
 		$("label[title]").tooltip({ html: 'true' })
     })
-
 require(['jquery','underscore','splunkjs/mvc', 'bootstrap.tab', 'splunkjs/mvc/simplexml/ready!'],
 		function($, _, mvc){
 
@@ -124,6 +136,7 @@ require(['jquery','underscore','splunkjs/mvc', 'bootstrap.tab', 'splunkjs/mvc/si
 
 	// Make the tabs into tabs
     $('#tabs', this.$el).tab();
+    $('#tabs_content_table', this.$el).tab();
 
     /**
      * The code below handles the tokens that trigger when searches are kicked off for a tab.

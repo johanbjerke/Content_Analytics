@@ -106,6 +106,18 @@ owner = admin
 version = 7.2.0
 modtime = 1546529193.452733000
 
+[lookups/AppDependencies.csv]
+owner = admin
+version = 7.2.0
+modtime = 1551435972.524954000
+
+[transforms/AppDependencies]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = admin
+version = 7.2.0
+modtime = 1551435426.913006000
+
 [views/documentation]
 owner = admin
 version = 7.2.0

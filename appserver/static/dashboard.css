@@ -24,6 +24,9 @@ td[data-cell-index="3"] {
 #content_table th[data-sort-key=Details] {
     min-width:220px;
 }
+#content_table th[data-sort-key=Status] {
+    min-width:140px;
+}
 #content_table td:last-child,#content_table th:last-child {
     display:none;
 }
