@@ -1,21 +1,43 @@
 <form script="dashboard.js" stylesheet="dashboard.css" theme="light">
   <label>Security Content Overview</label>
   <description>Each number represents a piece of content</description>
-  <init>
-    <set token="addsample"></set>
-    <set token="replacewithsample"></set>
-    <set token="y_field">Status</set>
-  </init>
+  <search>
+    <query>| inputlookup ColorScheme.csv WHERE Enabled="Yes"
+| appendcols [
+| inputlookup AppSettings.csv
+| transpose 10 header_field=Key
+| fields - column
+]</query>
+    <done>
+      <condition match="'job.resultCount' &gt; 0">
+        <set token="addsample"></set>
+        <set token="replacewithsample"></set>
+        <set token="y_field">Status</set>
+        <set token="Phase0Color">$result.Phase0$</set>
+        <set token="Phase1Color">$result.Phase1$</set>
+        <set token="Phase2Color">$result.Phase2$</set>
+        <set token="SelectedColor">$result.Selected$</set>
+        <set token="Phase0LongName">$result.Phase0LongName$</set>
+        <set token="Phase0ShortName">$result.Phase0ShortName$</set>
+        <set token="Phase1LongName">$result.Phase1LongName$</set>
+        <set token="Phase1ShortName">$result.Phase1ShortName$</set>
+        <set token="Phase2LongName">$result.Phase2LongName$</set>
+        <set token="Phase2ShortName">$result.Phase2ShortName$</set>
+        <set token="SelectedLongName">$result.SelectedLongName$</set>
+        <set token="SelectedShortName">$result.SelectedShortName$</set>
+      </condition>
+    </done>
+  </search>
   <search>
     <query>| makeresults count=1</query>
     <done>
       <condition match="$job.doneProgress$=1">
         <set token="x_field">$form.x_field$</set>
-        <set token="chart_post_process">|  foreach "Current" "Phase 1 - Potential" "Phase 2 - Needs more data"
+        <set token="chart_post_process">|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$"
 [
     | eval "&lt;&lt;FIELD&gt;&gt;"=if(isnull('&lt;&lt;FIELD&gt;&gt;'), 0,'&lt;&lt;FIELD&gt;&gt;' )
 ]
-| table "$form.x_field$" "Current" "Phase 1 - Potential" "Phase 2 - Needs more data" Selected</set>
+| table "$form.x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" $SelectedShortName$</set>
       </condition>
     </done>
   </search>
@@ -108,7 +130,11 @@ isnotnull(dashboard),"Splunk_Security_Essentials/".replace(dashboard, "\s", "%20
         [| rest splunk_server=local count=0 /servicesNS/-/-/admin/eventtypes 
         | rename eai:acl.app AS app tags AS tag_name 
         | search app="*TA*" 
-        | rex max_match=0 field=search "sourcetype=\"?(?&lt;sourcetype&gt;[^\s\"^)]+)\"?" 
+        | rex max_match=0 field=search "sourcetype=\"?(?&lt;sourcetype&gt;[^\s\"^)]+)\"?"
+        | rex max_match=0 field=search "eventtype=\"?(?&lt;eventtype&gt;[^\s\"^)]+)\"?"
+        | lookup EventtypeToSourcetype Eventtype AS title OUTPUT Sourcetype AS SourcetypeFromEventtype
+        | lookup EventtypeToSourcetype Eventtype AS eventtype OUTPUTNEW Sourcetype AS SourcetypeFromEventtype
+        | eval sourcetype=mvdedup(coalesce(SourcetypeFromEventtype,sourcetype))
         | mvexpand sourcetype 
         | lookup SourcetypeNormalisation Sourcetype AS sourcetype OUTPUT Normalised
         | eval sourcetype=mvdedup(coalesce(Normalised,sourcetype))
@@ -148,9 +174,9 @@ $replacewithsample$
 | eval "Has Data (DM)"=if(EventCount&gt;0, "Yes", "No")
 | eval "Has Data (Index)"=if('EventCount (Sourcetype)'&gt;0, "Yes", "No")
 | eval Status=case(
-'Enabled'="Yes" AND ('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"Current",
-('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"Phase 1 - Potential",
-1=1,"Phase 2 - Needs more data"
+'Enabled'="Yes" AND ('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"$Phase0LongName$",
+('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"$Phase1LongName$",
+1=1,"$Phase2LongName$"
 )
 
 | eval "Detection Type"=if(Datamodel!="-", "Datamodel", "Index")
@@ -171,14 +197,14 @@ $replacewithsample$
   <row id="cs2">
     <panel>
       <single>
-        <title>Current</title>
+        <title>$Phase0LongName$</title>
         <search base="usecase_base">
-          <query>| where Status="Current"
+          <query>| where Status="$Phase0LongName$"
 | stats count</query>
         </search>
         <option name="colorMode">block</option>
         <option name="drilldown">all</option>
-        <option name="rangeColors">["0x638771","0x3c444d"]</option>
+        <option name="rangeColors">["#$Phase0Color$","#3c444d"]</option>
         <option name="rangeValues">[1000]</option>
         <option name="refresh.display">progressbar</option>
         <option name="underLabel">Content (Enabled)</option>
@@ -186,20 +212,20 @@ $replacewithsample$
         <drilldown>
           <set token="form.corr_enabled">Yes</set>
           <set token="form.corr_data">=*</set>
-          <set token="form.phase">Current</set>
+          <set token="form.phase">$Phase0LongName$</set>
         </drilldown>
       </single>
     </panel>
     <panel>
       <single>
-        <title>Phase 1 - Potential</title>
+        <title>$Phase1LongName$</title>
         <search base="usecase_base">
-          <query>| where Status="Phase 1 - Potential"
+          <query>| where Status="$Phase1LongName$"
 | stats count</query>
         </search>
         <option name="colorMode">block</option>
         <option name="drilldown">all</option>
-        <option name="rangeColors">["0xA0BBAA","0x3c444d"]</option>
+        <option name="rangeColors">["#$Phase1Color$","#3c444d"]</option>
         <option name="rangeValues">[1000]</option>
         <option name="refresh.display">progressbar</option>
         <option name="underLabel">Content (Data Exist)</option>
@@ -207,20 +233,20 @@ $replacewithsample$
         <drilldown>
           <set token="form.corr_enabled">No</set>
           <set token="form.corr_data">&gt;0</set>
-          <set token="form.phase">Phase 1 - Potential</set>
+          <set token="form.phase">$Phase1LongName$</set>
         </drilldown>
       </single>
     </panel>
     <panel>
       <single>
-        <title>Phase 2 - Needs more data</title>
+        <title>$Phase2LongName$</title>
         <search base="usecase_base">
-          <query>| where Status="Phase 2 - Needs more data"
+          <query>| where Status="$Phase2LongName$"
 | stats count</query>
         </search>
         <option name="colorMode">block</option>
         <option name="drilldown">all</option>
-        <option name="rangeColors">["0xE0E9E3","0x3c444d"]</option>
+        <option name="rangeColors">["#$Phase2Color$","#3c444d"]</option>
         <option name="rangeValues">[10000]</option>
         <option name="refresh.display">progressbar</option>
         <option name="underLabel">Content (Total)</option>
@@ -228,7 +254,7 @@ $replacewithsample$
         <drilldown>
           <set token="form.corr_enabled">*</set>
           <set token="form.corr_data">=*</set>
-          <set token="form.phase">Phase 2 - Needs more data</set>
+          <set token="form.phase">$Phase2LongName$</set>
         </drilldown>
       </single>
     </panel>
@@ -275,29 +301,33 @@ $replacewithsample$
 | fields - "Use Case"
 | rename title AS "Use Case"
 | fillnull
-|  foreach "Current" "Phase 1 - Potential" "Phase 2 - Needs more data" Selected
+|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" $SelectedShortName$
 [
     | eval "&lt;&lt;FIELD&gt;&gt;"=if(isnull('&lt;&lt;FIELD&gt;&gt;'), 0,'&lt;&lt;FIELD&gt;&gt;' )
 ]
-| table "$x_field$" "Current" "Phase 1 - Potential" "Phase 2 - Needs more data" Selected</set>
+| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" $SelectedShortName$</set>
           </condition>
           <condition label="*">
-            <set token="chart_post_process">|  foreach "Current" "Phase 1 - Potential" "Phase 2 - Needs more data"
+            <set token="chart_post_process">|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$"
 [
     | eval "&lt;&lt;FIELD&gt;&gt;"=if(isnull('&lt;&lt;FIELD&gt;&gt;'), 0,'&lt;&lt;FIELD&gt;&gt;' )
 ]
-| table "$x_field$" "Current" "Phase 1 - Potential" "Phase 2 - Needs more data" Selected</set>
+| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" $SelectedShortName$</set>
           </condition>
         </change>
       </input>
       <input type="dropdown" token="phase">
-        <label>Phase</label>
+        <label>Status</label>
         <choice value="*">Any</choice>
-        <choice value="Current">Current</choice>
-        <choice value="Phase 1 - Potential">Phase 1</choice>
-        <choice value="Phase 2 - Needs more data">Phase 2</choice>
-        <choice value="Selected">Selected Sourcetypes</choice>
         <default>*</default>
+        <fieldForLabel>LongName</fieldForLabel>
+        <fieldForValue>LongName</fieldForValue>
+        <search>
+          <query>| inputlookup AppSettings.csv
+| rex field=Key "(?&lt;phase&gt;.*)(Long|Short)Name"
+| stats first(Value) AS LongName, Last(Value) AS ShortName BY phase
+| fields - phase</query>
+        </search>
       </input>
       <input type="dropdown" token="sourcetype_origin">
         <label>Sourcetype origin</label>
@@ -343,11 +373,11 @@ $replacewithsample$
 | search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
 | chart count over "$x_field$" By Status
 
-| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval $SelectedShortName$_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), $SelectedShortName$,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
 | eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
 | fields - m
-| eval "Phase 2 - Needs more data"=if(Selected_New=0 AND Selected&gt;0, 'Phase 2 - Needs more data'+Selected, 'Phase 2 - Needs more data')
-| rename Selected_New AS Selected
+| eval "$Phase2LongName$"=if(Selected_New=0 AND $SelectedShortName$&gt;0, '$Phase2LongName$'+Selected, '$Phase2LongName$')
+| rename $SelectedShortName$_New AS $SelectedShortName$
 
 $chart_post_process$</query>
         </search>
@@ -360,7 +390,7 @@ $chart_post_process$</query>
         <option name="charting.chart">column</option>
         <option name="charting.chart.stackMode">stacked</option>
         <option name="charting.drilldown">all</option>
-        <option name="charting.fieldColors">{"Current": 0x638771, "Phase 1 - Potential": 0xA0BBAA, "Phase 2 - Needs more data":0xE0E9E3, "Yes":0x638771, "No":0xE0E9E3, "Enabled":0x638771, "Disabled":0xE0E9E3,"Selected":0xEC9960}</option>
+        <option name="charting.fieldColors">{"$Phase0LongName$": 0x$Phase0Color$, "$Phase1LongName$": 0x$Phase1Color$, "$Phase2LongName$":0x$Phase2Color$, "Yes":0x$Phase0Color$, "No":0x$Phase2Color$, "Enabled":0x$Phase0Color$, "Disabled":0x$Phase2Color$,"Selected":0x$SelectedColor$}</option>
         <option name="height">310</option>
         <option name="refresh.display">progressbar</option>
         <drilldown>
@@ -379,14 +409,18 @@ $chart_post_process$</query>
   </row>
   <row id="row2_col1">
     <panel depends="$radar$">
-
-      <input type="dropdown" token="phase">
-        <label>Phase</label>
+     <input type="dropdown" token="phase">
+        <label>Status</label>
         <choice value="*">Any</choice>
-        <choice value="Current">Current</choice>
-        <choice value="Phase 1 - Potential">Phase 1</choice>
-        <choice value="Phase 2 - Needs more data">Phase 2</choice>
         <default>*</default>
+        <fieldForLabel>LongName</fieldForLabel>
+        <fieldForValue>LongName</fieldForValue>
+        <search>
+          <query>| inputlookup AppSettings.csv
+| rex field=Key "(?&lt;phase&gt;.*)(Long|Short)Name"
+| stats first(Value) AS LongName, Last(Value) AS ShortName BY phase
+| fields - phase</query>
+        </search>
       </input>
       <input type="dropdown" token="sourcetype_origin">
         <label>Sourcetypes</label>
@@ -416,24 +450,29 @@ $chart_post_process$</query>
       <viz type="custom-radar-chart-viz.radar_chart">
         <title>(Requires Radar Viz)</title>
         <search base="usecase_base">
+          <done>
+            <condition match="'job.resultCount' &gt; 0">
+              <set token="RadarMaxValue">$result.MaxCount$</set>
+            </condition>
+          </done>
           <query>| eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "Selected",Status)
 | search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
 | chart count over "$x_field$" By Status
 
-| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval $SelectedShortName$_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), $SelectedShortName$,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
 | eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
 | fields - m
-| eval "Phase 2 - Needs more data"=if(Selected_New=0 AND Selected&gt;0, 'Phase 2 - Needs more data'+Selected, 'Phase 2 - Needs more data')
-| rename Selected_New AS Selected
+| eval "$Phase2LongName$"=if(Selected_New=0 AND $SelectedShortName$&gt;0, '$Phase2LongName$'+Selected, '$Phase2LongName$')
+| rename $SelectedShortName$_New AS $SelectedShortName$
 
 $chart_post_process$
 | untable "$x_field$" key value
 | rename  "$x_field$" AS axis
 | eval keyColor=case(
-key="Current","#638771",
-key="Phase 1 - Potential","#A0BBAA",
-key="Phase 2 - Needs more data","#E0E9E3",
-key="Selected","#EC9960"
+key="$Phase0LongName$","#$Phase0Color$",
+key="$Phase1LongName$","#$Phase1Color$",
+key="$Phase2LongName$","#$Phase2Color$",
+key="Selected","#$SelectedColor$"
 )</query>
         </search>
         <option name="custom-radar-chart-viz.radar_chart.areasOpacity">0.35</option>
@@ -445,6 +484,7 @@ key="Selected","#EC9960"
         <option name="custom-radar-chart-viz.radar_chart.circlesColor">#CDCDCD</option>
         <option name="custom-radar-chart-viz.radar_chart.circlesFillColor">#ffffff</option>
         <option name="custom-radar-chart-viz.radar_chart.circlesOpacity">0.1</option>
+          <option name="custom-radar-chart-viz.radar_chart.format"></option>
         <option name="custom-radar-chart-viz.radar_chart.fullScreen">0</option>
         <option name="custom-radar-chart-viz.radar_chart.isRounded">0</option>
         <option name="custom-radar-chart-viz.radar_chart.legendEnabled">1</option>
@@ -454,7 +494,7 @@ key="Selected","#EC9960"
         <option name="custom-radar-chart-viz.radar_chart.legendSymbol">cross</option>
         <option name="custom-radar-chart-viz.radar_chart.legendToggleSymbol">circle</option>
         <option name="custom-radar-chart-viz.radar_chart.levels">10</option>
-        <option name="custom-radar-chart-viz.radar_chart.maxValue">120</option>
+        <option name="custom-radar-chart-viz.radar_chart.maxValue">100</option>
         <option name="drilldown">none</option>
         <option name="height">466</option>
         <option name="refresh.display">progressbar</option>
@@ -467,13 +507,18 @@ key="Selected","#EC9960"
   <row id="row3_col1">
     <panel depends="$sankey$">
       <title>Content from Add On &gt; Data Model &gt; Sourcetype &gt; Status</title>
-      <input type="dropdown" token="phase">
-        <label>Phase</label>
+     <input type="dropdown" token="phase">
+        <label>Status</label>
         <choice value="*">Any</choice>
-        <choice value="Current">Current</choice>
-        <choice value="Phase 1 - Potential">Phase 1</choice>
-        <choice value="Phase 2 - Needs more data">Phase 2</choice>
         <default>*</default>
+        <fieldForLabel>LongName</fieldForLabel>
+        <fieldForValue>LongName</fieldForValue>
+        <search>
+          <query>| inputlookup AppSettings.csv
+| rex field=Key "(?&lt;phase&gt;.*)(Long|Short)Name"
+| stats first(Value) AS LongName, Last(Value) AS ShortName BY phase
+| fields - phase</query>
+        </search>
       </input>
       <input type="dropdown" token="sourcetype_origin">
         <label>Sourcetypes</label>
@@ -522,7 +567,7 @@ key="Selected","#EC9960"
         <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
         <option name="sankey_diagram_app.sankey_diagram.colorMode">sequential</option>
-        <option name="sankey_diagram_app.sankey_diagram.maxColor">#638771</option>
+        <option name="sankey_diagram_app.sankey_diagram.maxColor">#$Phase0Color$</option>
         <option name="sankey_diagram_app.sankey_diagram.minColor">#F5F8F6</option>
         <option name="sankey_diagram_app.sankey_diagram.numOfBins">9</option>
         <option name="sankey_diagram_app.sankey_diagram.showLegend">true</option>
@@ -537,26 +582,33 @@ key="Selected","#EC9960"
     <panel>
       <title>Content configured in the system</title>
       <input type="dropdown" token="phase">
-        <label>Phase</label>
+        <label>Status</label>
         <choice value="*">Any</choice>
-        <choice value="Current">Current</choice>
-        <choice value="Phase 1 - Potential">Phase 1 - Potential</choice>
-        <choice value="Phase 2 - Needs more data">Phase 2 - Needs more data</choice>
-        <choice value="Selected">Selected Sourcetypes</choice>
+        <default>*</default>
+        <fieldForLabel>LongName</fieldForLabel>
+        <fieldForValue>LongName</fieldForValue>
+        <search>
+          <query>| inputlookup AppSettings.csv
+| rex field=Key "(?&lt;phase&gt;.*)(Long|Short)Name"
+| stats first(Value) AS LongName, Last(Value) AS ShortName BY phase
+| fields - phase</query>
+        </search>
+      </input>
+      <input type="dropdown" token="app">
+        <label>Originating app</label>
+        <fieldForLabel>App</fieldForLabel>
+        <fieldForValue>App</fieldForValue>
+        <search base="usecase_base">
+          <query>| stats count by App | fields App | sort 0 App</query>
+        </search>
+        <choice value="*">Any</choice>
         <default>*</default>
       </input>
-      <input type="dropdown" token="corr_data">
-        <label>Data</label>
-        <choice value="=*">Any</choice>
-        <choice value="&gt;0">Yes</choice>
-        <choice value="=0">No</choice>
-        <default>=*</default>
-      </input>
-      <input type="dropdown" token="corr_enabled">
-        <label>Enabled</label>
+      <input type="dropdown" token="detection_type">
+        <label>Content type</label>
         <choice value="*">Any</choice>
-        <choice value="Yes">Yes</choice>
-        <choice value="No">No</choice>
+        <choice value="Datamodel">Datamodel</choice>
+        <choice value="Index">Indexed data</choice>
         <default>*</default>
       </input>
       <input type="dropdown" token="datamodel">
@@ -648,7 +700,7 @@ key="Selected","#EC9960"
       <table id="content_table">
         <search base="usecase_base">
           <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
-| search Enabled="$corr_enabled$" Hosts$corr_data$ ($sourcetype$) AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "Use Case Orig"="$usecase$"
+| search ($sourcetype$) AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "Use Case Orig"="$usecase$" "Detection Type"="$detection_type$" "App"="$app$"
 | where like(lower(Title),"%".lower("$searchfilter$")."%") OR like(lower(Description),"%".lower("$searchfilter$")."%") OR like(lower('Detection Search'),"%".lower("$searchfilter$")."%")
 | eval sourcetypes_selected=mvfilter($sourcetype$)
 | eval Sourcetype=coalesce(sourcetypes_selected,Sourcetype)
@@ -659,28 +711,30 @@ key="Selected","#EC9960"
         </search>
         <option name="count">5</option>
         <option name="drilldown">cell</option>
-        <option name="refresh.display">progressbar</option>
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>
         <format type="color" field="Status">
-          <colorPalette type="map">{"Current":#638771,"Phase 1 - Potential":#A0BBAA,"Phase 2 - Needs more data":#E0E9E3,"Selected":0xEC9960}</colorPalette>
+          <colorPalette type="map"></colorPalette>
         </format>
         <format type="number" field="Events">
           <option name="precision">0</option>
         </format>
         <format type="color" field="Events">
-          <colorPalette type="list">[#E0E9E3,#638771]</colorPalette>
+          <colorPalette type="list">[#CCE2EB,#006D9C]</colorPalette>
           <scale type="threshold">1</scale>
         </format>
         <format type="color" field="Hosts">
-          <colorPalette type="list">[#E0E9E3,#638771]</colorPalette>
+          <colorPalette type="list">[#CCE2EB,#006D9C]</colorPalette>
           <scale type="threshold">1</scale>
         </format>
         <format type="color" field="Enabled">
-          <colorPalette type="map">{"Yes":#638771,"No":#E0E9E3}</colorPalette>
+          <colorPalette type="map">{"Yes":#006D9C,"No":#CCE2EB}</colorPalette>
         </format>
         <format type="color" field="Accelerated">
-          <colorPalette type="map">{"Yes":#638771,"No":#E0E9E3}</colorPalette>
+          <colorPalette type="map">{"Yes":#006D9C,"No":#CCE2EB}</colorPalette>
+        </format>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"$Phase0LongName$":#$Phase0Color$,"$Phase1LongName$":#$Phase1Color$,"$Phase2LongName$":#$Phase2Color$,"$SelectedLongName$":#$SelectedColor$,"$SelectedShortName$":#$SelectedColor$}</colorPalette>
         </format>
         <drilldown>
           <link target="_blank">
@@ -697,28 +751,28 @@ key="Selected","#EC9960"
       <table id="sourcetype_table">
         <search base="usecase_base">
           <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
-| search Enabled="$corr_enabled$" Hosts$corr_data$ AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "Use Case Orig"="$usecase$"
+| search AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "Use Case Orig"="$usecase$" "Detection Type"="$detection_type$" "App"="$app$"
 | mvexpand Sourcetype
 | where Sourcetype!="-"
 | stats 
-sum(eval(if(Status="Current",1,0))) AS Current,
-sum(eval(if(Status="Phase 1 - Potential",1,0))) AS "Phase 1 - Potential",
-sum(eval(if(Status="Phase 2 - Needs more data",1,0))) AS "Phase 2 - Needs more data",
+sum(eval(if(Status="$Phase0LongName$",1,0))) AS $Phase0LongName$,
+sum(eval(if(Status="$Phase1LongName$",1,0))) AS "$Phase1LongName$",
+sum(eval(if(Status="$Phase2LongName$",1,0))) AS "$Phase2LongName$",
 sum(eval(if(Status="Selected",1,0))) AS "Selected"
 BY Sourcetype 
 
-| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval $SelectedShortName$_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), $SelectedShortName$,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
 | eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
 | fields - m
-| eval "Phase 2 - Needs more data"=if(Selected_New=0 AND Selected&gt;0, 'Phase 2 - Needs more data'+Selected, 'Phase 2 - Needs more data')
-| rename Selected_New AS Selected
+| eval "$Phase2LongName$"=if(Selected_New=0 AND $SelectedShortName$&gt;0, '$Phase2LongName$'+Selected, '$Phase2LongName$')
+| rename $SelectedShortName$_New AS $SelectedShortName$
 
 | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h AS "Events (-24h)", host_count_24h AS "Hosts (-24h)", app AS "Add-On"
 | lookup SourcetypeNormalisation Sourcetype OUTPUT Normalised
 | eval Sourcetype=mvdedup(coalesce(Normalised,Sourcetype))
-| eval Total='Current'+'Phase 1 - Potential'+'Phase 2 - Needs more data'+'Selected'
+| eval Total='$Phase0LongName$'+'$Phase1LongName$'+'$Phase2LongName$'+'Selected'
 | sort - Total
-| table "Sourcetype" Total "Current" "Phase 1 - Potential" "Phase 2 - Needs more data" Selected "Add-On" "Events (-24h)" "Hosts (-24h)"</query>
+| table "Sourcetype" Total "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" $SelectedShortName$ "Add-On" "Events (-24h)" "Hosts (-24h)"</query>
         </search>
         <option name="count">10</option>
         <option name="dataOverlayMode">none</option>
@@ -727,23 +781,23 @@ BY Sourcetype
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>
         <format type="color" field="Total">
-          <colorPalette type="minMidMax" maxColor="#638771" minColor="#FFFFFF"></colorPalette>
+          <colorPalette type="minMidMax" maxColor="#$Phase0Color$" minColor="#FFFFFF"></colorPalette>
           <scale type="minMidMax"></scale>
         </format>
-        <format type="color" field="Current">
-          <colorPalette type="list">[#638771]</colorPalette>
+        <format type="color" field="$Phase0LongName$">
+          <colorPalette type="list">[#$Phase0Color$]</colorPalette>
           <scale type="threshold"></scale>
         </format>
-        <format type="color" field="Phase 1 - Potential">
-          <colorPalette type="minMidMax" maxColor="#A0BBAA" minColor="#FFFFFF"></colorPalette>
+        <format type="color" field="$Phase1LongName$">
+          <colorPalette type="minMidMax" maxColor="#$Phase1Color$" minColor="#FFFFFF"></colorPalette>
           <scale type="minMidMax"></scale>
         </format>
-        <format type="color" field="Phase 2 - Needs more data">
-          <colorPalette type="minMidMax" maxColor="#E0E9E3" minColor="#FFFFFF"></colorPalette>
+        <format type="color" field="$Phase2LongName$">
+          <colorPalette type="minMidMax" maxColor="#$Phase2Color$" minColor="#FFFFFF"></colorPalette>
           <scale type="minMidMax"></scale>
         </format>
         <format type="color" field="Selected">
-          <colorPalette type="minMidMax" maxColor="#EC9960" minColor="#FFFFFF"></colorPalette>
+          <colorPalette type="minMidMax" maxColor="#$SelectedColor$" minColor="#FFFFFF"></colorPalette>
           <scale type="minMidMax"></scale>
         </format>
         <drilldown>

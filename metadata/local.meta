@@ -1,0 +1,38 @@
+[lookups/ColorScheme.csv]
+access = read : [ * ], write : [ admin, power ]
+export = system
+owner = admin
+version = 7.2.0
+modtime = 1551958133.621552000
+
+[views/security_content_overview]
+version = 7.2.0
+modtime = 1551972997.594656000
+
+[lookups/AppSettings.csv]
+owner = admin
+version = 7.2.0
+modtime = 1551882966.416965000
+
+[views/mitre_overview]
+version = 7.2.0
+modtime = 1551889846.356219000
+
+[views/kill_chain_overview]
+version = 7.2.0
+modtime = 1551890358.267711000
+
+[savedsearches/Generate%20Sourcetype%20Summary%20-%20Scheduled]
+version = 7.2.0
+modtime = 1551949718.836964000
+
+[lookups/SourceToSourcetype.csv]
+version = 7.2.0
+modtime = 1551950971.380571000
+
+[transforms/ColorScheme]
+access = read : [ * ], write : [ admin ]
+export = system
+owner = admin
+version = 7.2.0
+modtime = 1551957379.381495000

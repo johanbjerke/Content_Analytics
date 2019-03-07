@@ -11,8 +11,8 @@ require([
 ], function(_, $, mvc, TableView) {
     var CustomIconRenderer = TableView.BaseCellRenderer.extend({
         canRender: function(cell) {
-            //return cell.field === 'Details' || cell.field === 'Description';
-			return cell.field === 'Details';
+            return cell.field === 'Details' || cell.field === 'Description' || cell.field === 'Title' || cell.field === 'Detection Search';
+			//return cell.field === 'Details';
         },
         render: function($td, cell) {
         	if (cell.field === 'Details') {
@@ -32,16 +32,15 @@ require([
 
 				//cell.value=details;
 				$td.html(details);
-			} else if (cell.field === 'Description') {
-        		/*
-        		//This part it WIP
-        		var value = cell.value;
-        		var searchfilter = $("input[type='text']").val()
-        		console.log(searchfilter)
-				newText = value.replace(RegExp(searchfilter, "gi"), '<span class="red">'+searchfilter+'</span>');
-        		$td.html(newText);
-				console.log(newText)
-				*/
+			} else if (cell.field === 'Description' || cell.field === 'Title' || cell.field === 'Detection Search') {
+        		//This section effectively parses the html tags so they are not shown in the table. It also adds highlights to any search filter.
+				var cellvalue = cell.value;
+        		var searchfilter=$(".splunk-textinput input[type='text']").val();
+        		if (typeof searchfilter.length!="undefined" && searchfilter.length>0) {
+        			var cellvalue = cellvalue.replace(RegExp(searchfilter, "gi"), '<span class="highlight">'+searchfilter+'</span>');
+				}
+        		//console.log(cellvalue)
+				$td.html(cellvalue);
 			}
         }
     });
@@ -63,11 +62,14 @@ require(["jquery",
         $, Ready) {
 		$("label:contains('Split by')").prop('title', 'This option selects which field to split the X-axis by.');
 		$("label:contains('Phase')").prop('title', '<p>Current: Content is installed, the data is in Splunk and it is enabled.</p><p>Phase 1: Content is installed, the data is in Splunk and but it is disabled.</p><p>Phase 2: Content is installed, the data is not in Splunk and it is disabled.</p><p>Selected Sourcetypes: This highlight where the selected sourcetypes would map to what is on the X-axis. .</p>');
+		$("label:contains('Status')").prop('title', '<p>Current: Content is installed, the data is in Splunk and it is enabled.</p><p>Phase 1: Content is installed, the data is in Splunk and but it is disabled.</p><p>Phase 2: Content is installed, the data is not in Splunk and it is disabled.</p><p>Selected Sourcetypes: This highlight where the selected sourcetypes would map to what is on the X-axis. .</p>');
 		$("label:contains('Sourcetype origin')").prop('title', '<p>Installed Sourcetypes: The chart is filtered to Sourcetypes that are currently installed.</p><p>All Sourcetypes: The chart is filtered to sourcetypes that are either installed or are referred to in the content search string.</p><p>Sample Sourcetypes: The chart is filtered to sourcetypes that are provided with the app. This list represents a large proportion of the sourcetypes available on Splunkbase. This setting will allow you to run analytics without having any Add-ons or data in Splunk.</p>');
 		$("label:contains('Sourcetype selection')").prop('title', 'Select which Sourcetypes to highlighted in the "Selected" field');
 		$("label:contains('Data')").prop('title', 'Filters the list to show if we have data for the content.');
 		$("label:contains('Enabled')").prop('title', 'Filters the list to show if we have enabled the content.');
 		$("label:contains('Datamodel')").prop('title', 'Filters the list to show only the selected Datamodel.');
+		$("label:contains('Originating app')").prop('title', 'Filters the list to show only content from a specific app.');
+		$("label:contains('Content type')").prop('title', 'Filters the list to show only content that is based on either Indexed data or a Datamodel.');
 		$("label:contains('Use Case')").prop('title', 'Filters the list to show only the selected Use Cases. The Use Cases are high level categories that are useful to gauge the level of maturity for the content.');
         $("label:contains('Sourcetype filter')").prop('title', 'Filters to show only content that is mapped to the selected Sourcetypes.');
 		$("label:contains('Add-On')").prop('title', 'Filters the list to show only content that is mapped to the selected Add-On.');

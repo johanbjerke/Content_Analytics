@@ -173,6 +173,7 @@ testport,"TA-webtools",installed,0,0
 "appmaker_make_content_pack-too_small",learned,installed,0,0
 "configuration_check.log",learned,installed,0,0
 "customsearchbuilder_rest_handler-too_small",learned,installed,0,0
+"ex23sample_controller-2",learned,installed,0,0
 "ex23sample_controller-too_small",learned,installed,0,0
 "example_code-2",learned,installed,0,0
 "example_code-too_small",learned,installed,0,0

@@ -43,6 +43,20 @@ span.green {
     border: dashed #bbb;
     border-width: 0 0 1px;
 }
+
+/* This makes descriptions that contain HTML tags display uniformly to those that do not */
+#content_table td p {
+    padding: 0 0px;
+     color: #006eaa !important;
+}
+
+#content_table td .highlight {
+    background-color: #fef2d7;
+    border-top: 4px solid #fef2d7;
+    border-bottom: 4px solid #fef2d7;
+    color: #3c444d;
+}
+
 .tooltip p {
     text-align:left;
     color:#fff;

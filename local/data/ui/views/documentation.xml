@@ -1,5 +1,16 @@
 <dashboard>
   <label>Documentation</label>
+     <search>
+    <query>| inputlookup ColorScheme.csv WHERE Enabled="Yes"</query>
+    <done>
+      <condition match="'job.resultCount' &gt; 0">
+        <set token="Phase0Color">$result.Phase0$</set>
+        <set token="Phase1Color">$result.Phase1$</set>
+        <set token="Phase2Color">$result.Phase2$</set>
+        <set token="SelectedColor">$result.Selected$</set>
+      </condition>
+    </done>
+  </search>
   <row>
     <panel>
       <html>
@@ -158,7 +169,7 @@ The high level process is visualised in the Sankey below:
         <option name="drilldown">none</option>
         <option name="refresh.display">progressbar</option>
         <option name="sankey_diagram_app.sankey_diagram.colorMode">sequential</option>
-        <option name="sankey_diagram_app.sankey_diagram.maxColor">#638771</option>
+        <option name="sankey_diagram_app.sankey_diagram.maxColor">#$Phase0Color$</option>
         <option name="sankey_diagram_app.sankey_diagram.minColor">#F5F8F6</option>
         <option name="sankey_diagram_app.sankey_diagram.numOfBins">9</option>
         <option name="sankey_diagram_app.sankey_diagram.showLegend">true</option>

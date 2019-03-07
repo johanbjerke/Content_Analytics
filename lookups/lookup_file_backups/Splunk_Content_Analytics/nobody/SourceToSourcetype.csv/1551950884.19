@@ -15,7 +15,6 @@ winEventLog:Security,WinEventLog
 winEventLog:Security,XmlWinEventLog
 winEventLog:Security,WinEventLog:Security
 winEventLog:System,WinEventLog
-winEventLog:System,WinEventLog:System
 winRegistry,WinRegistry
 windowsUpdateLog,WindowsUpdateLog
 wineventlog:security,WinEventLog
@@ -23,7 +22,6 @@ wineventlog:security,XmlWinEventLog
 wineventlog:security,WinEventLog:Security
 wineventlog:system,WinEventLog
 wineventlog:system,WinEventLog:System
-winEventLog:System,WinEventLog:System
 winhostmon,winhostmon
 WMI:WinEventLog:Security,WMI:WinEventLog:Security
 XmlWinEventLog:Security,XmlWinEventLog:Security
