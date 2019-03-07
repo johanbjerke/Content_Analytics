@@ -1,15 +1,21 @@
 LinkSource,LinkDestination,count
-"All Content","ES Content Updates",150
-"All Content","Enterprise Security",60
-"All Content","Splunk Security Essentials",133
-"All Content","TA-QualysCloudPlatform",1
-"ES Content Updates","Content based on Datamodel",85
-"ES Content Updates","Content based on Indexed data",65
-"Enterprise Security","Content based on Datamodel",44
-"Enterprise Security","Content based on Indexed data",16
-"Splunk Security Essentials","Content based on Datamodel",1
-"Splunk Security Essentials","Content based on Indexed data",132
-"TA-QualysCloudPlatform","Content based on Datamodel",1
-"Content based on Datamodel","We don’t have data",130
-"Content based on Datamodel","We have data, content not enabled",1
-"Content based on Indexed data","We don’t have data",213
+All Content,ES Content Updates,152
+All Content,Enterprise Security,63
+All Content,Splunk Security Essentials,132
+All Content,SplunkEnterpriseSecuritySuite,2
+All Content,Splunk_SA_ThreatReview,2
+All Content,TA-symantec_atp,3
+ES Content Updates,Content based on Datamodel,87
+ES Content Updates,Content based on Indexed data,65
+Enterprise Security,Content based on Datamodel,47
+Enterprise Security,Content based on Indexed data,16
+Splunk Security Essentials,Content based on Datamodel,1
+Splunk Security Essentials,Content based on Indexed data,131
+SplunkEnterpriseSecuritySuite,Content based on Datamodel,1
+SplunkEnterpriseSecuritySuite,Content based on Indexed data,1
+Splunk_SA_ThreatReview,Content based on Datamodel,2
+TA-symantec_atp,Content based on Indexed data,3
+Content based on Datamodel,Enabled and working,23
+Content based on Datamodel,We don't have data,69
+Content based on Datamodel,"We have data, content not enabled",46
+Content based on Indexed data,We don't have data,216

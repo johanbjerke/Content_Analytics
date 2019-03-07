@@ -1,0 +1,15 @@
+LinkSource,LinkDestination,count
+"All Content","ES Content Updates",150
+"All Content","Enterprise Security",60
+"All Content","Splunk Security Essentials",133
+"All Content","TA-QualysCloudPlatform",1
+"ES Content Updates","Content based on Datamodel",85
+"ES Content Updates","Content based on Indexed data",65
+"Enterprise Security","Content based on Datamodel",44
+"Enterprise Security","Content based on Indexed data",16
+"Splunk Security Essentials","Content based on Datamodel",1
+"Splunk Security Essentials","Content based on Indexed data",132
+"TA-QualysCloudPlatform","Content based on Datamodel",1
+"Content based on Datamodel","We don’t have data",130
+"Content based on Datamodel","We have data, content not enabled",1
+"Content based on Indexed data","We don’t have data",213
