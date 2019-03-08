@@ -1,5 +1,12 @@
 <form script="dashboard.js" stylesheet="dashboard.css" theme="light">
   <label>Cyber Kill Chain</label>
+      <init>
+        <set token="Phase0LongName">Current</set>
+        <set token="Phase1LongName">Potential</set>
+        <set token="Phase2LongName">Needs more data</set>
+        <set token="SelectedLongName">Selected Sourcetypes</set>
+        <set token="SelectedColor">66A7C4</set>
+  </init>
     <search>
     <query>| inputlookup ColorScheme.csv WHERE Enabled="Yes"
 | appendcols [
@@ -115,47 +122,48 @@ isnotnull(dashboard),"Splunk_Security_Essentials/".replace(dashboard, "\s", "%20
 | rename csearch_label AS "Title", description AS Description, qualifiedSearch as "Detection Search", datamodel AS Datamodel, EventCount AS Events, providing_technologies AS "Providing Technologies"
 | eval Enabled=if(disabled=1, "No", "Yes")
 | eval App=case(app="DA-ESS-ContentUpdate", "ES Content Updates", like(app,"SplunkEnterpriseSecuritySuite") OR  like(app,"SA-%") OR like(app,"DA-%"), "Enterprise Security", like(Description,"%Security Essentials%"), "Splunk Security Essentials",isnotnull(displayapp),displayapp,1=1, app)
-| join type=outer Datamodel 
-    [| rest splunk_server=local count=0 /servicesNS/-/-/admin/datamodel-files 
-    | spath input=eai:data output=base_search path=objects{}.baseSearch 
-    | spath input=eai:data output=constraints path=objects{}.constraints{}.search 
-    | eval tag_content = mvappend(base_search,constraints) 
-    | rex max_match=0 field=tag_content "tag=\"?(?&lt;tag_name&gt;\w+)\"?" 
-    | mvexpand tag_name 
-    | rename title AS datamodel 
-    | fields tag_name datamodel 
-    | append 
-        [| rest splunk_server=local count=0 /servicesNS/-/-/admin/eventtypes 
-        | rename eai:acl.app AS app tags AS tag_name 
-        | search app="*TA*" 
+| join type=outer Datamodel
+    [| rest splunk_server=local count=0 /servicesNS/-/-/admin/datamodel-files
+    | spath input=eai:data output=base_search path=objects{}.baseSearch
+    | spath input=eai:data output=constraints path=objects{}.constraints{}.search
+    | eval tag_content = mvappend(base_search,constraints)
+    | rex max_match=0 field=tag_content "tag=\"?(?&lt;tag_name&gt;\w+)\"?"
+    | mvexpand tag_name
+    | rename title AS datamodel
+    | fields tag_name datamodel
+    | append
+        [| rest splunk_server=local count=0 /servicesNS/-/-/admin/eventtypes
+        | rename eai:acl.app AS app tags AS tag_name
+        | search app="*TA*"
         | rex max_match=0 field=search "sourcetype=\"?(?&lt;sourcetype&gt;[^\s\"^)]+)\"?"
         | rex max_match=0 field=search "eventtype=\"?(?&lt;eventtype&gt;[^\s\"^)]+)\"?"
         | lookup EventtypeToSourcetype Eventtype AS title OUTPUT Sourcetype AS SourcetypeFromEventtype
         | lookup EventtypeToSourcetype Eventtype AS eventtype OUTPUTNEW Sourcetype AS SourcetypeFromEventtype
         | eval sourcetype=mvdedup(coalesce(SourcetypeFromEventtype,sourcetype))
-        | mvexpand sourcetype 
+        | mvexpand sourcetype
         | lookup SourcetypeNormalisation Sourcetype AS sourcetype OUTPUT Normalised
         | eval sourcetype=mvdedup(coalesce(Normalised,sourcetype))
-        | mvexpand sourcetype 
-        | mvexpand tag_name 
-        | eval app_sourcetype=mvzip(app,sourcetype,"__") 
-        | fields sourcetype tag_name app_sourcetype app 
+        | mvexpand sourcetype
+        | mvexpand tag_name
+        | eval app_sourcetype=mvzip(app,sourcetype,"__")
+        | fields sourcetype tag_name app_sourcetype app
         | stats values(tag_name) as tag_name by app, sourcetype,app_sourcetype
         | eval c="Manually exclude perfmon and certain WMI as it is mostly not valuable for security and it clogs up the stats"
         | fields - c
-        | where NOT (like(lower(sourcetype),"%perfmon%") OR ( like(lower(sourcetype),"wmi:%") AND NOT like(lower(sourcetype),"wmi:wineventlog:security") ) )
-            ] 
+        | where NOT (like(lower(sourcetype),"%perfmon%") OR ( like(lower(sourcetype),"wmi:%") AND NOT like(lower(sourcetype),"wmi:wineventlog:%") AND NOT like(lower(sourcetype),"wmi:service")  ) )
+            ]
     $addsample$
-    | stats first(Hosts) AS Hosts,sum(EventCount) AS "EventCount",first(totalCount) AS totalCount,list(datamodel) as datamodel, list(app) as app, list(app_sourcetype) as app_sourcetype by tag_name 
-    | search datamodel=* 
-    | eval datamodel=mvdedup(datamodel) 
-    | stats first(Hosts) AS Hosts,values(EventCount) AS "EventCount",values(app_sourcetype) as app_sourcetype, values(tag_name) as tags by datamodel 
-    | rex max_match=0 field=app_sourcetype "\"?(?&lt;app&gt;.+)__\"?" 
-    | rex max_match=0 field=app_sourcetype "__\"?(?&lt;sourcetype&gt;.+)\"?" 
-    | eval tags=mvdedup(tags),app=mvdedup(app),EventCount=mvdedup(EventCount) 
-    | eventstats sum(EventCount) AS EventCount BY datamodel 
-    | fields - app_sourcetype 
-    | lookup Datamodel_Event_Summary.csv datamodel
+    | stats list(datamodel) as datamodel, list(app) as app, list(app_sourcetype) as app_sourcetype by tag_name
+    | search datamodel=*
+    | eval datamodel=mvdedup(datamodel)
+    | stats values(app_sourcetype) as app_sourcetype, values(tag_name) as tags by datamodel
+    | rex max_match=0 field=app_sourcetype "\"?(?&lt;app&gt;.+)__\"?"
+    | rex max_match=0 field=app_sourcetype "__\"?(?&lt;sourcetype&gt;.+)\"?"
+    | eval tags=mvdedup(tags),app=mvdedup(app)
+    | fields - app_sourcetype
+    | lookup Datamodel_Event_Summary.csv datamodel OUTPUT EventCount AS EventCount_potential,Acceleration, Hosts AS Hosts_potential, Sourcetype AS sourcetype_potential_DM,Sourcetype_label AS Sourcetype_potential_label_DM
+    | eventstats sum(*_potential) AS * BY datamodel
+    | eval Acceleration=mvdedup(Acceleration)
     | rename datamodel AS Datamodel, tags as Tags, sourcetype AS Sourcetype, app AS AddOn
     | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin
     | lookup Sample_sourcetypes.csv Sourcetype OUTPUT sourcetype_origin AS sourcetype_origin_sample, app AS AddOn_sample 
@@ -164,21 +172,31 @@ isnotnull(dashboard),"Splunk_Security_Essentials/".replace(dashboard, "\s", "%20
         ]
 $replacewithsample$
 | eval Datamodel=coalesce(Datamodel,"-")
-| eval AddOn=coalesce(split(replace(AddOn,"\n","---"),"---"),AddOn,"-"),Sourcetype=coalesce(split(replace(Sourcetype,"\n","---"),"---"),Sourcetype,"-"),sourcetype_origin=coalesce(split(replace(sourcetype_origin,"\n","---"),"---"),sourcetype_origin,"-")
-| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h host_count_24h
+| eval AddOn=coalesce(split(replace(AddOn,"\n","---"),"---"),AddOn,"-"),Sourcetype=coalesce(split(replace(Sourcetype,"\n","---"),"---"),Sourcetype,"-"),sourcetype_origin=coalesce(split(replace(sourcetype_origin,"\n","---"),"---"),sourcetype_origin,"-"),Sourcetype_potential_label_DM=coalesce(split(replace(Sourcetype_potential_label_DM,"\n","---"),"---"),Sourcetype_potential_label_DM,"-"),sourcetype_potential_DM=coalesce(split(replace(sourcetype_potential_DM,"\n","---"),"---"),sourcetype_potential_DM,"-")
+| eval AddOn=mvdedup(AddOn)
+| lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h host_count_24h, Sourcetype_label AS Sourcetype_potential_label
+| eventstats sum(sourcetype_count_24h) AS sourcetype_count_24h,sum(host_count_24h) AS host_count_24h BY Title Description
 | rename sourcetype_count_24h AS "EventCount (Sourcetype)",host_count_24h AS "HostCount (Sourcetype)"
 | eval Accelerated=if(Acceleration&gt;0, "Yes","No")
 | eval "Enabled and Accelerated"=if(Acceleration&gt;0 AND Enabled="Yes", "Yes","No")
 | eval "Has Data (DM)"=if(EventCount&gt;0, "Yes", "No")
 | eval "Has Data (Index)"=if('EventCount (Sourcetype)'&gt;0, "Yes", "No")
+| eval "Detection Type"=if(Datamodel!="-", "Datamodel", "Index")
 | eval Status=case(
-'Enabled'="Yes" AND ('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"$Phase0LongName$",
-('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"$Phase1LongName$",
-1=1,"$Phase2LongName$"
+'Detection Type'="Datamodel" AND 'Enabled'="Yes" AND 'Accelerated'="Yes" AND 'Has Data (DM)'="Yes","$Phase0LongName$",
+'Detection Type'="Index" AND 'Enabled'="Yes" AND 'Has Data (Index)'="Yes","$Phase0LongName$",
+'Detection Type'="Datamodel" AND ('Has Data (DM)'="Yes" OR 'Has Data (Index)'="Yes"),"$Phase1LongName$",
+'Detection Type'="Index" AND 'Has Data (Index)'="Yes","$Phase1LongName$",
+1=1,"Needs more data"
 )
 
-| eval "Detection Type"=if(Datamodel!="-", "Datamodel", "Index")
-| eventstats dc(eval(if(Sourcetype="-",null,Sourcetype))) AS "Sourcetypes Installed Count",dc(eval(if(AddOn="-",null,AddOn))) AS "AddOns Installed Count" BY "Title"
+| eval Sourcetype_potential_label=case(
+'Has Data (DM)'="Yes",Sourcetype_potential_label_DM,
+'Has Data (Index)'="Yes",Sourcetype_potential_label,
+1=1,Sourcetype_potential_label
+)
+| eval Sourcetype_potential_label=mvfilter(NOT match(Sourcetype_potential_label, "Events:0"))
+| eventstats dc(eval(if(Sourcetype="-",null,Sourcetype))) AS "Sourcetypes Installed Count",dc(Sourcetype_potential_label) AS "Sourcetypes with data count",dc(eval(if(AddOn="-",null,AddOn))) AS "AddOns Installed Count" BY "Title"
 | eval Details="Detection Enabled: ".Enabled
 | eval Details=mvappend(Details, "Detection Type: ".'Detection Type')
 | eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Datamodel accelerated: ".if(coalesce('Acceleration',0)&gt;0,"Yes","No")),Details)
@@ -186,7 +204,7 @@ $replacewithsample$
 | eval Details=if('Detection Type'="Datamodel",mvappend(Details, "Hosts with data (-24h): ".'Hosts'),Details)
 | eval Details=if('Detection Type'="Index",mvappend(Details, "Indexed data exists (-24h): ".'Has Data (Index)'),Details)
 | eval Details=if('Detection Type'="Index",mvappend(Details, "Hosts with data (-24h): ".'HostCount (Sourcetype)'),Details)
-| eval Details=mvappend(Details, "Sourcetypes Installed: ".'Sourcetypes Installed Count')
+| eval Details=if('Status'="$Phase0LongName$" OR 'Status'="$Phase1LongName$",mvappend(Details, "Sourcetypes with data: ".'Sourcetypes with data count'),mvappend(Details, "Sourcetypes: ".'Sourcetypes Installed Count'))
 | eval Details=mvappend(Details, "Add-Ons Installed: ".'AddOns Installed Count')
 | eval Hosts=if('Detection Type'="Index",'HostCount (Sourcetype)',Hosts)
 
@@ -309,18 +327,18 @@ $replacewithsample$
 | fields - "Kill Chain Phase"
 | rename title AS "Kill Chain Phase"
 | fillnull
-|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" Selected
+|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" "$SelectedLongName$"
 [
     | eval "&lt;&lt;FIELD&gt;&gt;"=if(isnull('&lt;&lt;FIELD&gt;&gt;'), 0,'&lt;&lt;FIELD&gt;&gt;' )
 ]
-| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" Selected</set>
+| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" "$SelectedLongName$"</set>
           </condition>
           <condition label="*">
             <set token="chart_post_process">|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$"
 [
     | eval "&lt;&lt;FIELD&gt;&gt;"=if(isnull('&lt;&lt;FIELD&gt;&gt;'), 0,'&lt;&lt;FIELD&gt;&gt;' )
 ]
-| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$"</set>
+| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" "$SelectedLongName$"</set>
           </condition>
         </change>
       </input>
@@ -378,17 +396,15 @@ $replacewithsample$
       <chart>
         <search base="usecase_base">
           <query>
-            | eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "Selected",Status)
-               | foreach Enabled Hosts Sourcetype AddOn Datamodel Status "Use Case Orig" [
-             | eval "&lt;&lt;FIELD&gt;&gt;"=coalesce('&lt;&lt;FIELD&gt;&gt;',"-")
-            ]
-            | search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
-| chart count over "$x_field$" By "$y_field$"
-| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+            | eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "$SelectedLongName$",Status)
+| search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
+| chart count over "$x_field$" By Status
+
+| eval "$SelectedLongName$_New"=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), '$SelectedLongName$',isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,'$SelectedLongName$')
 | eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
 | fields - m
-| eval "$Phase2LongName$"=if(Selected_New=0 AND Selected&gt;0, '$Phase2LongName$'+Selected, '$Phase2LongName$')
-| rename Selected_New AS Selected
+| eval "$Phase2LongName$"=if('$SelectedLongName$_New'=0 AND '$SelectedLongName$'&gt;0, '$Phase2LongName$'+'$SelectedLongName$', '$Phase2LongName$')
+| rename "$SelectedLongName$_New" AS "$SelectedLongName$"
               $chart_post_process$</query>
         </search>
         <option name="charting.axisLabelsX.majorLabelStyle.overflowMode">ellipsisNone</option>
@@ -400,7 +416,7 @@ $replacewithsample$
         <option name="charting.chart">column</option>
         <option name="charting.chart.stackMode">stacked</option>
         <option name="charting.drilldown">all</option>
-        <option name="charting.fieldColors">{"$Phase0LongName$": 0x$Phase0Color$, "$Phase1LongName$": 0x$Phase1Color$, "$Phase2LongName$":0x$Phase2Color$, "Yes":0x$Phase0Color$, "No":0x$Phase2Color$, "Enabled":0x$Phase0Color$, "Disabled":0x$Phase2Color$,"Selected":0x$SelectedColor$}</option>
+        <option name="charting.fieldColors">{"$Phase0LongName$": 0x$Phase0Color$, "$Phase1LongName$": 0x$Phase1Color$, "$Phase2LongName$":0x$Phase2Color$, "Yes":0x$Phase0Color$, "No":0x$Phase2Color$, "Enabled":0x$Phase0Color$, "Disabled":0x$Phase2Color$,"$SelectedLongName$":0x$SelectedColor$,"$SelectedShortName$":0x$SelectedColor$}</option>
         <option name="height">310</option>
         <option name="refresh.display">progressbar</option>
         <drilldown>
@@ -460,15 +476,15 @@ $replacewithsample$
       <viz type="custom-radar-chart-viz.radar_chart">
         <title>(Requires Radar Viz)</title>
         <search base="usecase_base">
-          <query>| eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+          <query>| eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "$SelectedLongName$",Status)
 | search sourcetype_origin="$sourcetype_origin$" Status="$phase$"
 | chart count over "$x_field$" By Status
 
-| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval "$SelectedLongName$_New"=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), '$SelectedLongName$',isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,'$SelectedLongName$')
 | eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
 | fields - m
-| eval "$Phase2LongName$"=if(Selected_New=0 AND Selected&gt;0, '$Phase2LongName$'+Selected, '$Phase2LongName$')
-| rename Selected_New AS Selected
+| eval "$Phase2LongName$"=if('$SelectedLongName$_New'=0 AND '$SelectedLongName$'&gt;0, '$Phase2LongName$'+'$SelectedLongName$', '$Phase2LongName$')
+| rename "$SelectedLongName$_New" AS "$SelectedLongName$"
 
 | append
 [
@@ -480,11 +496,11 @@ $replacewithsample$
 | fields - "Kill Chain Phase"
 | rename title AS "Kill Chain Phase"
 | fillnull
-|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" Selected
+|  foreach "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" "$SelectedLongName$"
 [
     | eval "&amp;lt;&amp;lt;FIELD&amp;gt;&amp;gt;"=if(isnull('&amp;lt;&amp;lt;FIELD&amp;gt;&amp;gt;'), 0,'&amp;lt;&amp;lt;FIELD&amp;gt;&amp;gt;' )
 ]
-| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" Selected
+| table "$x_field$" "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" "$SelectedLongName$"
 
 | untable "$x_field$" key value
 | rename  "$x_field$" AS axis
@@ -492,7 +508,7 @@ $replacewithsample$
 key="$Phase0LongName$","#$Phase0Color$",
 key="$Phase1LongName$","#$Phase1Color$",
 key="$Phase2LongName$","#$Phase2Color$",
-key="Selected","#$SelectedColor$"
+key="$SelectedLongName$","#$SelectedColor$"
 )</query>
         </search>
         <option name="custom-radar-chart-viz.radar_chart.areasOpacity">0.35</option>
@@ -567,7 +583,9 @@ key="Selected","#$SelectedColor$"
       <viz type="sankey_diagram_app.sankey_diagram">
         <title>(Requires Sankey Viz)</title>
         <search base="usecase_base">
-          <query>| search sourcetype_origin="$sourcetype_origin$"  Status="$phase$"
+          <query>
+              | eval Status=if("$x_field$"!="AddOn" AND in(Sourcetype,$sourcetype_selection$), "$SelectedLongName$",Status)
+              | search sourcetype_origin="$sourcetype_origin$"  Status="$phase$"
             | appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l1", count AS l1 by Sourcetype AddOn]
 | appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l2", count AS l2 by AddOn Datamodel]
 | appendpipe [| stats count(eval('$y_field$'="Yes")) AS "$y_field$_l3", count AS l3 by Datamodel "$y_field$"]
@@ -694,7 +712,7 @@ key="Selected","#$SelectedColor$"
   <row id="tabs_content_table">
     <panel>
       <html>
-      <h1>Content Overview - Click to filter</h1>
+      <h1>Content Overview - Click to drill down</h1>
       <ul id="tabs" class="nav nav-tabs">
                     <li class="active">
                         <a href="#" class="toggle-tab" data-toggle="tab" data-elements="row4_col1,row1_col1" data-token="row4_col1">Content View</a>
@@ -713,10 +731,14 @@ key="Selected","#$SelectedColor$"
       <table id="content_table">
         <search base="usecase_base">
           <query>
-            | eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+            | eval Status=if(in(Sourcetype,$sourcetype_selection$), "$SelectedLongName$",Status)
             | search ($sourcetype$) AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "Kill Chain Phase Orig"="$kill_chain_phase$" "Detection Type"="$detection_type$" "App"="$app$"
             | where like(lower(Title),"%".lower("$searchfilter$")."%") OR like(lower(Description),"%".lower("$searchfilter$")."%") OR like(lower('Detection Search'),"%".lower("$searchfilter$")."%")
-
+| eval Sourcetype=case(
+(Status="$Phase1LongName$" OR Status="$Phase0LongName$"),
+coalesce(Sourcetype_potential_label, Sourcetype),
+1=1,Sourcetype
+)
               | eval sourcetypes_selected=mvfilter($sourcetype$)
             | eval Sourcetype=coalesce(sourcetypes_selected,Sourcetype)
             | fields - Tags
@@ -731,7 +753,7 @@ key="Selected","#$SelectedColor$"
         <option name="rowNumbers">true</option>
         <option name="totalsRow">true</option>
         <format type="color" field="Status">
-          <colorPalette type="map">{"$Phase0LongName$":#$Phase0Color$,"$Phase1LongName$":#$Phase1Color$,"$Phase2LongName$":#$Phase2Color$,"Selected":0x$SelectedColor$}</colorPalette>
+          <colorPalette type="map">{"$Phase0LongName$":#$Phase0Color$,"$Phase1LongName$":#$Phase1Color$,"$Phase2LongName$":#$Phase2Color$,"$SelectedLongName$":#$SelectedColor$,"$SelectedShortName$":#$SelectedColor$}</colorPalette>
         </format>
         <format type="number" field="Events">
           <option name="precision">0</option>
@@ -764,7 +786,7 @@ key="Selected","#$SelectedColor$"
     <panel>
       <table id="sourcetype_table">
         <search base="usecase_base">
-          <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "Selected",Status)
+          <query>| eval Status=if(in(Sourcetype,$sourcetype_selection$), "$SelectedLongName$",Status)
 | search AddOn=$AddOn$ Datamodel="$datamodel$" Status="$phase$" "Kill Chain Phase Orig"="$kill_chain_phase$" "Detection Type"="$detection_type$" "App"="$app$"
 | mvexpand Sourcetype
 | where Sourcetype!="-"
@@ -772,21 +794,21 @@ key="Selected","#$SelectedColor$"
 sum(eval(if(Status="$Phase0LongName$",1,0))) AS $Phase0LongName$,
 sum(eval(if(Status="$Phase1LongName$",1,0))) AS "$Phase1LongName$",
 sum(eval(if(Status="$Phase2LongName$",1,0))) AS "$Phase2LongName$",
-sum(eval(if(Status="Selected",1,0))) AS "Selected"
+sum(eval(if(Status="$SelectedLongName$",1,0))) AS "$SelectedLongName$"
 BY Sourcetype
 
-| eval Selected_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), Selected,isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,Selected)
+| eval $SelectedLongName$_New=case(isnotnull(Sourcetype) AND in(Sourcetype,$sourcetype_selection$), '$SelectedLongName$',isnotnull(Sourcetype) AND NOT in(Sourcetype,$sourcetype_selection$),0,1=1,'$SelectedLongName$')
 | eval m="Move the overlapping entries to Phase 2 so they dont get lost while filtering"
 | fields - m
-| eval "$Phase2LongName$"=if(Selected_New=0 AND Selected&gt;0, '$Phase2LongName$'+Selected, '$Phase2LongName$')
-| rename Selected_New AS Selected
+| eval "$Phase2LongName$"=if('$SelectedLongName$_New'=0 AND '$SelectedLongName$'&gt;0, '$Phase2LongName$'+'$SelectedLongName$', '$Phase2LongName$')
+| rename "$SelectedLongName$_New" AS "$SelectedLongName$"
 
 | lookup Installed_sourcetypes.csv Sourcetype OUTPUT sourcetype_count_24h AS "Events (-24h)", host_count_24h AS "Hosts (-24h)", app AS "Add-On"
 | lookup SourcetypeNormalisation Sourcetype OUTPUT Normalised
 | eval Sourcetype=mvdedup(coalesce(Normalised,Sourcetype))
-| eval Total='$Phase0LongName$'+'$Phase1LongName$'+'$Phase2LongName$'+'Selected'
+| eval Total='$Phase0LongName$'+'$Phase1LongName$'+'$Phase2LongName$'+'$SelectedLongName$'
 | sort - Total
-| table "Sourcetype" Total "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" Selected "Add-On" "Events (-24h)" "Hosts (-24h)"</query>
+| table "Sourcetype" Total "$Phase0LongName$" "$Phase1LongName$" "$Phase2LongName$" "$SelectedLongName$" "Add-On" "Events (-24h)" "Hosts (-24h)"</query>
         </search>
         <option name="count">10</option>
         <option name="dataOverlayMode">none</option>
@@ -810,7 +832,11 @@ BY Sourcetype
           <colorPalette type="minMidMax" maxColor="#$Phase2Color$" minColor="#FFFFFF"></colorPalette>
           <scale type="minMidMax"></scale>
         </format>
-        <format type="color" field="Selected">
+        <format type="color" field="$SelectedLongName$">
+          <colorPalette type="minMidMax" maxColor="#$SelectedColor$" minColor="#FFFFFF"></colorPalette>
+          <scale type="minMidMax"></scale>
+        </format>
+                <format type="color" field="$SelectedShortName$">
           <colorPalette type="minMidMax" maxColor="#$SelectedColor$" minColor="#FFFFFF"></colorPalette>
           <scale type="minMidMax"></scale>
         </format>
