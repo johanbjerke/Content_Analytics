@@ -1,7 +1,0 @@
-Title,App,Link,Comment,Dependency
-,Splunk_SA_CIM,,,
-,DA-ESS-ContentUpdate,,,
-,Splunk_Security_Essentials,,,
-,SplunkEnterpriseSecuritySuite,,,
-,sankey_diagram_app,,,
-Custom Radar Chart Visualization,custom-radar-chart-viz,https://splunkbase.splunk.com/app/3772/,,
