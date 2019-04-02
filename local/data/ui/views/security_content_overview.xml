@@ -1,5 +1,5 @@
 <form script="dashboard.js" stylesheet="dashboard.css" theme="light">
-  <label>Security Content Overview</label>
+  <label>Content Overview</label>
   <description>Each number represents a piece of content</description>
   <init>
         <set token="Phase0LongName">Current</set>
