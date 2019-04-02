@@ -4,6 +4,9 @@
 []
 access = read : [ * ], write : [ admin, power ]
 
+[commands]
+export = system
+
 ### EVENT TYPES
 
 [eventtypes]

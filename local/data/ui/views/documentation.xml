@@ -75,7 +75,7 @@ len(Comment)&gt;0 AND Dependency="Nice to have","Recommended",
           <query>| makeresults count=2
 | streamstats count
 | eval Lookup=if(count=1,"Datamodel_Event_Summary.csv","Installed_sourcetypes.csv")
-| eval Url=if(count=1,"Splunk_Content_Analytics/search?q=%7C%20savedsearch%20nosubstitution%3Dt%20\"Generate%20Datamodel%20Event%20Summary%20-%20Scheduled\"","Splunk_Content_Analytics/search?q=%7C%20savedsearch%20\"Generate%20Sourcetype%20Summary%20-%20Scheduled\"")
+| eval Url=if(count=1,"Content_Analytics/search?q=%7C%20savedsearch%20nosubstitution%3Dt%20\"Generate%20Datamodel%20Event%20Summary%20-%20Scheduled\"","Content_Analytics/search?q=%7C%20savedsearch%20\"Generate%20Sourcetype%20Summary%20-%20Scheduled\"")
 | join type=outer count [
 | inputlookup Datamodel_Event_Summary.csv
 | stats count AS Rows
