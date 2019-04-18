@@ -48,25 +48,11 @@ modtime = 1545311009.535606000
 version = 7.2.0
 modtime = 1549968776.940072000
 
-[macros/getsse]
-access = read : [ * ], write : [ admin ]
-export = system
-owner = admin
-version = 7.2.0
-modtime = 1546536706.765546000
-
-[lookups/SourcetypeNormalisation.csv]
-version = 7.2.0
-modtime = 1546615592.889370000
 
 [lookups/AppSettings.csv]
 owner = admin
 version = 7.2.0
 modtime = 1551882966.416965000
-
-[lookups/SourceToSourcetype.csv]
-version = 7.2.0
-modtime = 1551950971.380571000
 
 [transforms/ColorScheme]
 access = read : [ * ], write : [ admin ]
@@ -75,26 +61,6 @@ owner = admin
 version = 7.2.0
 modtime = 1551957379.381495000
 
-[transforms/SourcetypeNormalisation]
-access = read : [ * ], write : [ admin ]
-export = system
-owner = admin
-version = 7.2.0
-modtime = 1543946072.215554000
-
-[transforms/SourceToSourcetype]
-access = read : [ * ], write : [ admin ]
-export = system
-owner = admin
-version = 7.2.0
-modtime = 1543953790.050880000
-
-[savedsearches/Generate%20Sourcetype%20Summary%20-%20Scheduled]
-access = read : [ * ], write : [ admin ]
-export = none
-owner = admin
-version = 7.2.0
-modtime = 1549988815.591710000
 
 [transforms/kill_chain_phases]
 access = read : [ * ], write : [ admin ]
@@ -103,17 +69,6 @@ owner = admin
 version = 7.2.0
 modtime = 1545311207.137622000
 
-[views/cis_overview]
-version = 7.2.0
-modtime = 1549998999.420881000
-
-[views/nist_overview]
-version = 7.2.0
-modtime = 1549968714.564500000
-
-[lookups/mitre_matrix.csv]
-version = 7.2.0
-modtime = 1546521311.149059000
 
 [transforms/mitre_matrix_list]
 access = read : [ * ], write : [ admin ]
@@ -134,11 +89,6 @@ owner = admin
 version = 7.2.0
 modtime = 1551435426.913006000
 
-[views/documentation]
-owner = admin
-version = 7.2.0
-modtime = 1549994352.779683000
-
 [savedsearches/Generate%20MITRE%20matrix%20list]
 access = read : [ * ], write : [ admin ]
 export = none
@@ -151,28 +101,3 @@ owner = admin
 version = 7.2.0
 modtime = 1549310623.776002000
 
-[savedsearches/Generate%20Datamodel%20Event%20Summary%20-%20Scheduled]
-access = read : [ * ], write : [ admin ]
-export = none
-owner = admin
-version = 7.2.0
-modtime = 1549989239.930747000
-
-[lookups/EventtypeToSourcetype.csv]
-owner = admin
-version = 7.2.0
-modtime = 1549987650.200658000
-
-[transforms/EventtypeToSourcetype]
-access = read : [ * ], write : [ admin ]
-export = system
-owner = admin
-version = 7.2.0
-modtime = 1549988270.244808000
-
-[savedsearches/Sample%20Sankey%20Diagram%20on%20Documentation%20Page]
-access = read : [ * ], write : [ admin ]
-export = none
-owner = admin
-version = 7.2.0
-modtime = 1549992991.430548000

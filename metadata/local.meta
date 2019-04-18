@@ -1,0 +1,20 @@
+
+[lookups/ColorScheme.csv]
+version = 7.2.0
+modtime = 1554815263.404440000
+
+[views/mitre_overview]
+version = 7.2.0
+modtime = 1555438012.957149000
+
+[savedsearches/Generate%20MITRE%20matrix%20list]
+version = 7.2.0
+modtime = 1554829675.807646000
+
+[views/kill_chain_overview]
+version = 7.2.0
+modtime = 1555594501.607796000
+
+[views/content_overview]
+version = 7.2.0
+modtime = 1555434935.665217000

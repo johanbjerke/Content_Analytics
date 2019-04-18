@@ -1,10 +1,8 @@
-<nav search_view="search">
-  <collection label="Security Content">
-    <view name="security_content_overview"/>
+<nav search_view="search" color="#00a9f8">
+  <collection label="Content Exploration">
+   <view name="content_overview"/>
   <view name="mitre_overview"/>
   <view name="kill_chain_overview"/>
-<view name="nist_overview"/>
-  <view name="cis_overview"/>
   </collection>
    <view name="documentation"/>
   <collection label="Search">
